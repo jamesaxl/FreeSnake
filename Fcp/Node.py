@@ -8,31 +8,13 @@ import uuid
 import logging
 import threading
 from threading import Timer
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
-from .Schema import client_hello_send, client_hello_receive
-from .Schema import generate_keys_send, generate_keys_receive
-from .Schema import watch_global_send
-from .Schema import put_data_send
-from .Schema import disconnect_send
-from .Schema import get_data_send
+from .Schema import FromClientToNode
+from .Schema import FromNodeToClient
+from .Schema import barnamy_parsing_received_request
 
-from .Schema import parsing_data
-from .Schema import persistent_put
-from .Schema import expected_hashes
-from .Schema import finished_compression
-from .Schema import simple_progress
-from .Schema import put_fetchable
-from .Schema import put_successful
-from .Schema import put_failed
-from .Schema import persistent_request_removed
-from .Schema import uri_generated
-from .Schema import remove_data_send
-
-from .Schema import get_request_status_send
-from .Schema import persistent_get
-from .Schema import data_found
-from .Schema import all_data
+FCP_VERSION = '2.0'
 
 try:
     import magic
@@ -42,25 +24,81 @@ except ModuleNotFoundError:
 class Node(object):
 
     def __init__(self):
-        self.peer_addr = None
-        self.peer_port = None
+        self.__peer_addr = None
+        self.__peer_port = None
         self.name_of_connection = None
         self.verbosity = None
         self.connected = False
 
-        self.node_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.node_request = self.NodeRequest(self)
+        # socket or wss 
+        self.__engine_mode = 'socket'
         self.job_store = self.JobStore()
+        self.node_request = None
+        self.super_sonic_reactor = None
+        
+        @property
+        def engine_mode(self):
+            return self.__engine_mode
+
+        @engine_mode.setter
+        def engine_mode(self, value):
+            if not value in ['socket', 'ws']:
+                raise Exception('your must set "socket" or "ws"')
+            self.__engine_mode = value
+
+        @property
+        def peer_addr(self):
+            return self.__peer_addr
+
+        @peer_addr.setter
+        def peer_addr(self, value):
+            # 
+            self.__peer_addr = value
+
+        @property
+        def peer_port(self):
+            return self.__peer_port
+
+        @peer_port.setter
+        def peer_port(self, value):
+            if not isinstance(value, int):
+                raise TypeError('peer_port must be integer')
+            self.__peer_port = value
+
+    def connect_to_node(self):
+        if self.connected:
+            raise Exception('You are connected')
+        
         self.super_sonic_reactor = self.SuperSonicReactor(self)
+        self.node_request = self.NodeRequest(self)
+        
+        time.sleep(2) # give 2 second to our engine
+        
+        self.super_sonic_reactor.boost()
+
+        self.node_request.say_hello()
+
+    def disconnect_from_node(self):
+        if not self.connected:
+            raise Exception('You are not connected')
+        self.node_request.disconnect()
+        self.connected = False
+
+    def reconnect_to_node(self):
+        self.disconnect_from_node()
+        # no need to set time sleep.
+        # because reactor will bost after 2 second
+        self.connect_to_node()
 
     class NodeRequest(object):
         def __init__(self, node):
             self.node = node
             self.uri_type = None
             self.name = None
+            self.tested_dda = {}
 
-        def connect_to_node(self):
-            self.node.node_socket.connect((self.node.peer_addr, self.node.peer_port))
+        def say_hello(self):
+
             if not self.node.name_of_connection:
                 self.node.name_of_connection = str(uuid.uuid4())
 
@@ -71,28 +109,23 @@ class Node(object):
                 if self.node.verbosity == 'DEBUG':
                     logging.basicConfig(format='%(levelname)s %(asctime)s %(message)s', level=logging.DEBUG)
 
-            self.node.super_sonic_reactor.run()
+            message = FromClientToNode.client_hello( name = self.node.name_of_connection, 
+                                         expected_version = FCP_VERSION)
 
-            self.__hello()
-            self.connected = True
-            return
-
-        def __hello(self):
-            message = client_hello_send( name = self.node.name_of_connection, 
-                                         expected_version = '2.0')
-
-            self.node.node_socket.send(message)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
             time.sleep(1)
+            self.__watch_global()
 
         def __watch_global(self):
-            self.node.node_socket.send(watch_global_send())
+            message = FromClientToNode.watch_global()
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def generate_keys(self, uri_type = 'SSK', name = None, callback = None):
             self.uri_type = uri_type
             self.name = name
             self.callback = callback
 
-            message, identifier = generate_keys_send()
+            message, identifier = FromClientToNode.generate_keys()
 
             job = self.node.JobTicket(self.node)
             # __Begin__ add a job
@@ -102,7 +135,7 @@ class Node(object):
             self.node.job_store[identifier] = job
             # __End__ add a job
 
-            self.node.node_socket.send(message)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
             time.sleep(1)
 
@@ -115,11 +148,25 @@ class Node(object):
 
             return pub, prv
 
-        def put_data(self, **kw):
-            if kw.get('global_queue', False):
-                self.__watch_global()
+        def test_dda_request(self, **kw):
 
-            message, identifier = put_data_send(**kw)
+            message = FromClientToNode.test_dda_request(**kw)
+
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+
+            time.sleep(1)
+
+        def test_dda_response(self, **kw):
+            
+            message, idenifier = FromClientToNode.test_dda_response(**kw)
+
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+
+            time.sleep(1)
+
+        def put_data(self, **kw):
+
+            message, identifier = FromClientToNode.put_data(**kw)
 
             job = self.node.JobTicket(self.node)
 
@@ -132,14 +179,67 @@ class Node(object):
 
             self.node.job_store[identifier] = job
 
-            self.node.node_socket.send(message)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
             time.sleep(1)
 
             return job
- 
+
         def put_file(self, **kw):
-            pass
+            message, identifier = FromClientToNode.put_file(**kw)
+
+            # job_test_dda_req = self.test_dda_request(directory = str(PurePosixPath(kw['file_path']).parent),
+            #                                          read = False, write = True)
+
+            # if not job_test_dda_req == 'Tested':
+
+            #     # I should get the response_test_dda_req here
+            #     write_filename = None
+            #     read_filename = None
+            #     read_content = None
+                
+            #     if 'ReadFilename' in self.response_test_dda_req:
+            #         read_filename = request_result['ReadFilename']
+
+            #         if Path(read_filename).exists():
+            #             read_content = read_file.read_text('utf-8')
+            #         else:
+            #             read_content = ''
+
+            #     if 'WriteFilename' in self.response_test_dda_req
+            #         content_to_write = self.response_test_dda_req['ContentToWrite']
+
+            #         write_filename = request_result['WriteFilename']
+            #         content_to_write = request_result['ContentToWrite'].encode('utf-8')
+            #         write_file = pathlib.Path(write_filename)
+
+            #         if write_file.exists():
+            #             write_file.write_bytes(content_to_write.encode('utf-8'))
+            #             write_file_stat_object = os.stat(write_filename)
+            #             write_file_mode = write_file_stat_object.st_mode
+            #             os.chmod(write_filename, write_file_mode | stat.S_IREAD | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+                
+            #     time.sleep(1)
+                
+            #     job_test_dda_response = self.test_dda_response( directory = response_test_dda_req['Directory'],
+            #             read_content = read_content, read_file_name = read_filename)
+
+            job = self.node.JobTicket(self.node)
+
+            # __Begin__ add a job
+            job.identifier = identifier
+            job.callback = None
+            job.message = message
+            self.node.job_store[identifier] = job
+            # __End__ add a job
+
+            self.node.job_store[identifier] = job
+
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+
+            time.sleep(1)
+
+            return job
 
         def put_redirect(self, **kw):
             pass
@@ -148,11 +248,8 @@ class Node(object):
             pass
 
         def get_data(self, **kw):
-            self.__watch_global()
+            message, identifier = FromClientToNode.get_data(**kw)
 
-            message, identifier = get_data_send(**kw)
-
-            print (message)
             # __Begin__ add a job
             job = self.node.JobTicket(self.node)
             job.identifier = identifier
@@ -163,17 +260,15 @@ class Node(object):
 
             self.node.job_store[identifier] = job
 
-            self.node.node_socket.send(message)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
             time.sleep(1)
 
             return job
 
         def get_request_status(self, identifier):
-            self.__watch_global()
-            message = get_request_status_send(identifier)
-            self.node.node_socket.send(message)
-
+            message = FromClientToNode.get_request_status(identifier)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def list_peer(self):
             pass
@@ -203,12 +298,6 @@ class Node(object):
             pass
     
         def modify_config(self):
-            pass
-
-        def test_dda_request(self):
-            pass
-
-        def test_dda_response(self):
             pass
 
         def load_plugin(self):
@@ -241,211 +330,279 @@ class Node(object):
         def modify_persistent_request(self):
             pass
 
-        def remove(self, identifier):
-            message = remove_data_send(identifier)
-            self.node.node_socket.send(message)
+        def remove_request(self, identifier):
+            message = FromClientToNode.remove_request(identifier)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
-        def disconnect_from_node(self):
-            message = disconnect_send()
-            self.node.node_socket.send(message)
+        def disconnect(self):
+            message = FromClientToNode.disconnect()
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
             time.sleep(1)
-            self.connected = False
             return
 
     # The super Sonic Reactor of our Aircraft
-    # It is under testing but it works made by JamesAxl
+    # It is under testing but it works. made by JamesAxl
     # Its nick name is 'Sohoi'
     # Do not touch it please, because the Snake will be hurt :)
     class SuperSonicReactor(object):
-            def __init__(self, node):
-                self.node = node
-                self.running = False
+        '''
 
-            def run(self):
-                if not self.running:
-                    self.reactor = Timer(1, self.__reactor, ())
-                    self.reactor.start()
-                else:
-                    raise Exception('Reactor is running')
+        '''
+        def __init__(self, node):
+            self.node = node
+            self.running = False
 
-            def __shutdown(self):
-                self.reactor.cancel()
-                self.running = False
-                self.node.node_socket.close()
-                logging.info('Disconnected from node')
+            if self.node.engine_mode == 'socket':
+                self.engine = self.EngineSocket(self)
 
-            def __reactor(self):
-                data = self.node.node_socket.recv(30000)
+            elif self.node.engine_mode == 'ws':
+                self.engine = self.EngineWebSocket(self)
+            else:
+                raise Exception('you mus set socket or wss')
 
-                if data == ''.encode('utf-8'):
-                    self.__shutdown()
-                    return
+        def boost(self):
+            self.engine._connect(self.node.peer_addr, self.node.peer_port)
+            self.run()
 
-                p_data = parsing_data(data)
+        def run(self):
+            if not self.running:
+                self.reactor = Timer(1, self.__reactor, ())
+                self.reactor.start()
+            else:
+                raise Exception('Reactor is running')
 
-                for item in p_data:
+        def __shutdown(self):
+            self.reactor.cancel()
+            self.running = False
+            self.engine._close()
+            logging.info('Stopping Reactor')
 
-                    # We need for testing our parsing
-                    with open("log.txt", "a") as myfile:
-                        myfile.write(str(item))
-                        myfile.write('\n\n')
+        def __reactor(self):
+            data = self.engine.listen_to_node()
 
-                    if client_hello_receive(item):
-                        response = client_hello_receive(item)
-                        if response == 'Connection started':
-                            self.node.connected = True
-                            logging.info(response)
+            if data == ''.encode('utf-8'):
+                self.__shutdown()
+                logging.info('Disconnect from Node')
+                return
 
-                    elif generate_keys_receive(self.node.node_request.uri_type, self.node.node_request.name, item):
-                        identifier, pub, prv = generate_keys_receive(self.node.node_request.uri_type, self.node.node_request.name, item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = (pub, prv)
-                            job.ready = True
-                            # __End__ update a job
+            p_data = barnamy_parsing_received_request(data)
 
-                            # callback if yes
-                            logging.info('Generate keys')
+            for item in p_data:
 
-                    elif persistent_put(item):
-                        identifier = persistent_put(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = item
-                            # __End__ update a job
+                # We need it for testing our parser
+                # We will remove it after
+                with open("log.txt", "a") as myfile:
+                    myfile.write(str(item))
+                    myfile.write('\n\n')
 
-                            # callback if yes
-                            logging.info('Persistent put')
+                if FromNodeToClient.client_hello(item):
+                    response = FromNodeToClient.client_hello(item)
+                    if response == 'Connection started':
+                        self.node.connected = True
+                        logging.info(response)
 
-                    elif expected_hashes(item):
-                        identifier = expected_hashes(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            #job.response = item
-                            # __End__ update a job
+                elif FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item):
+                    identifier, pub, prv = FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = (pub, prv)
+                        job.ready = True
+                        # __End__ update a job
 
-                            # callback if yes
-                            logging.info('Expected hashes')
+                        # callback if yes
+                        logging.info('Generate keys')
 
-                    elif finished_compression(item):
-                        identifier = finished_compression(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = item
-                            # __End__ update a job
-                             
-                            logging.info('Compression finished')
-                            # callback if yes
+                elif FromNodeToClient.test_dda_reply(item):
+                    print(item)
 
-                    elif uri_generated(item):
-                        identifier = uri_generated(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = item
-                            # __End__ update a job
+                elif FromNodeToClient.test_dda_complete(item):
+                    print(item)
 
-                            # callback if yes
-                            logging.info('Uri generated')
+                elif FromNodeToClient.persistent_put(item):
+                    identifier = FromNodeToClient.persistent_put(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item
+                        # __End__ update a job
 
-                    elif simple_progress(item):
-                        identifier = simple_progress(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            succeeded = int(item['Succeeded'])
-                            required = int(item['Required'])
-                            progress = (succeeded / required ) * 100.0
+                        # callback if yes
+                        logging.info('Persistent put')
 
-                            job.response = item
-                            job.progress= progress
-                            # __End__ update a job
+                elif FromNodeToClient.expected_hashes(item):
+                    identifier = FromNodeToClient.expected_hashes(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        #job.response = item
+                        # __End__ update a job
 
-                            logging.info('Progress {0}%'.format(progress))
-                            # callback if yes
+                        # callback if yes
+                        logging.info('Expected hashes')
 
-                    elif put_fetchable(item):
-                        identifier = put_fetchable(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = item
-                            # __End__ update a job
-
-                            # callback if yes
-                            logging.info('Put fetchable')
-
-                    elif put_successful(item):
-                        identifier = put_successful(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = item
-                            job.ready = True
-                            self.node.job_store[identifier].__del__()
-                            # __End__ update a job
-
-                            # callback if yes
-                            logging.info('Put successful')
-
-                    elif put_failed(item):
-                        identifier = put_failed(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = item
-                            self.node.job_store[identifier].__del__()
-                            # __End__ update a job
-                            
-                            logging.info('Put failed: {0}'.format(item['CodeDescription']))
-                            # callback if yes
-
-                    elif persistent_get(item):
-                        identifier = persistent_get(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = item
-                            # __End__ update a job
-                            
-                            logging.info('Persistent get')
-                            # callback if yes
+                elif FromNodeToClient.finished_compression(item):
+                    identifier = FromNodeToClient.finished_compression(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item
+                        # __End__ update a job
                          
-                    elif data_found(item):
-                        identifier = data_found(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = item
-                            # __End__ update a job
-                            
-                            logging.info('Data found')
-                            # callback if yes
-                    elif all_data(item):
-                        identifier = all_data(item)
-                        job = self.node.job_store.get(identifier, False)####
-                        if job:
-                            # __Begin__ update a job
-                            job.response = item['Metadata.ContentType'], item['Data'], item['DataLength']
-                            self.node.job_store[identifier].__del__()
-                            # __End__ update a job
-                            logging.info('All data')
-                    else:
-                        # we need to get the .Schema of every request
-                        print(item)
+                        logging.info('Compression finished')
+                        # callback if yes
 
+                elif FromNodeToClient.uri_generated(item):
+                    identifier = FromNodeToClient.uri_generated(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item
+                        # __End__ update a job
 
-                self.is_running = False
-                self.run()
+                        # callback if yes
+                        logging.info('Uri generated')
+
+                elif FromNodeToClient.simple_progress(item):
+                    identifier = FromNodeToClient.simple_progress(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        succeeded = int(item['Succeeded'])
+                        required = int(item['Required'])
+                        progress = (succeeded / required ) * 100.0
+
+                        job.response = item
+                        job.progress= progress
+                        # __End__ update a job
+
+                        logging.info('Progress {0}%'.format(progress))
+                        # callback if yes
+
+                elif FromNodeToClient.put_fetchable(item):
+                    identifier = FromNodeToClient.put_fetchable(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item
+                        # __End__ update a job
+
+                        # callback if yes
+                        logging.info('Put fetchable')
+
+                elif FromNodeToClient.put_successful(item):
+                    identifier = FromNodeToClient.put_successful(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item
+                        job.ready = True
+                        self.node.job_store[identifier].__del__()
+                        job.remove_from_queue_when_finish()
+                        # __End__ update a job
+
+                        # callback if yes
+                        logging.info('Put successful')
+
+                elif FromNodeToClient.put_failed(item):
+                    identifier = FromNodeToClient.put_failed(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item
+                        self.node.job_store[identifier].__del__()
+                        # __End__ update a job
+
+                        logging.info('Put failed: {0}'.format(item['CodeDescription']))
+                        # callback if yes
+
+                elif FromNodeToClient.persistent_get(item):
+                    identifier = FromNodeToClient.persistent_get(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item
+                        # __End__ update a job
+
+                        logging.info('Persistent get')
+                        # callback if yes
+                     
+                elif FromNodeToClient.data_found(item):
+                    identifier = FromNodeToClient.data_found(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item
+                        # __End__ update a job
+
+                        logging.info('Data found')
+                        # callback if yes
+                elif FromNodeToClient.all_data(item):
+                    identifier = FromNodeToClient.all_data(item)
+                    job = self.node.job_store.get(identifier, False)####
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item['Metadata.ContentType'], item['Data'], item['DataLength']
+                        self.node.job_store[identifier].__del__()
+                        job.remove_from_queue_when_finish()
+                        # __End__ update a job
+
+                        logging.info('All data')
+
+                elif FromNodeToClient.protocol_error(item):
+                    logging.info('Error: {0}'.format(item))
+
+                else:
+                    # we need to get the Schema of every request
+                    print(item)
+
+            self.is_running = False
+            self.run()
+
+        class EngineSocket(object):
+
+            def __init__(self, super_sonic_reactor):
+                self.super_sonic_reactor = super_sonic_reactor
+
+            def _connect(self, peer_addr, peer_port):
+                self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self._socket.connect((peer_addr, peer_port))
+
+            def _close(self):
+                self._socket.close()
+
+            def send_request_to_node(self, data):
+                self._socket.send(data)
+
+            def listen_to_node(self):
+                data = self._socket.recv(30000)
+                return data
+
+        class EngineWebSocket(object):
+            try:
+                import websockets
+            except ModuleNotFoundError:
+                raise ModuleNotFoundError('websockets module is required')
+
+            def __init__(self, super_sonic_reactor):
+                pass
+
+            def _connect(self):
+                pass
+
+            def _close(self):
+                pass
+
+            def _send_request(self):
+                pass
+
+            def _listen_to_node(self):
+                pass
 
     class JobStore(dict):
-        """
-        
-        """
+        '''
+        '''
+
         def __init__(self):
             super(dict, self).__init__()
             self.__max = 10
@@ -457,10 +614,14 @@ class Node(object):
             return self.keys().__len__()
 
     class JobTicket(object):
+        '''
+        '''
+
         def __init__(self, node):
             self.__node = node
 
             self.__identifier = None
+            self.__request = None
             self.__response = 'Sending'
             self.__callback = None
             self.__ready = False
@@ -525,12 +686,15 @@ class Node(object):
         def resend(self):
             print(self.__message)
 
+        def remove_from_queue_when_finish(self):
+            self.__node.node_request.remove_request(self.__identifier)
+
         def get_data(self):
-
-            #FIXME: We Should Ask Arnebab Again
-            self.__node.node_request.get_request_status(self.__identifier)
-            self.__node.node_request.get_request_status(self.__identifier)
-            # We Should Ask Arnebab Again
-
-            time.sleep(1)
+            if isinstance(response, dict):
+                if response.get('header', False) == 'DataFound':
+                    #FIXME: We Should Ask Arnebab Again
+                    self.__node.node_request.get_request_status(self.__identifier)
+                    self.__node.node_request.get_request_status(self.__identifier)
+                    # We Should Ask Arnebab Again
+                time.sleep(1)
         

@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+package FreeChat;
+
+message Message {
+  required string date_time = 1;
+  required string from_nick = 2;
+  required string to_nick = 3;
+  required string message = 4;
+  required string uniqueid = 5;
+}
+
