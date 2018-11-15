@@ -6,14 +6,15 @@ except ModuleNotFoundError:
     raise ModuleNotFoundError('cerberus module is required')
 
 try:
-    from cerberus import Validator
+    import magic
 except ModuleNotFoundError:
-    raise ModuleNotFoundError('cerberus module is required')
+    raise ModuleNotFoundError('magic module is required')
 
 
 from pathlib import Path, PurePosixPath, PosixPath
 import uuid
 import base64
+import hashlib
 
 class FromClientToNode(object):
     '''
@@ -123,22 +124,22 @@ class FromClientToNode(object):
 
         schema_succ =   {
                         'directory': {'type' : 'string', 'required': True, 'empty': False},
-                        'read_content' : {'type' : 'boolean', 'required': False, 'empty': False},
-                        'read_file_name' : {'type' : 'boolean', 'required': False, 'empty': False},
+                        'read_content' : {'type' : 'string', 'required': False},
+                        'read_filename' : {'type' : 'string', 'required': False},
                     }
 
         v_succ = Validator(schema_succ)
 
         if not v_succ.validate(kw):
-            return v_succ.errors
+            raise Exception(v_succ.errors)
 
-        test_dda_res += 'TestDDARequest\n'
+        test_dda_res = 'TestDDAResponse\n'
         test_dda_res += 'Directory={0}\n'.format(kw['directory'])
         test_dda_res += 'ReadContent={0}\n'.format(kw['read_content'])
-        test_dda_res += 'ReadFilename={0}\n'.format(kw['read_file_name'])
+        test_dda_res += 'ReadFilename={0}\n'.format(kw['read_filename'])
         test_dda_res += 'EndMessage\n'
 
-        return test_dda_res
+        return test_dda_res.encode('utf-8')
 
     @staticmethod
     def put_data(**kw):
@@ -270,6 +271,8 @@ class FromClientToNode(object):
         put_d += 'Persistence={0}\n'.format(persistence)
 
         target_filename = kw.get('target_filename', None)
+        if target_filename:
+            put_d += f'TargetFilename={target_filename}\n'
 
         early_encode = kw.get('early_encode', False)
         put_d += 'EarlyEncode={0}\n'.format(early_encode)
@@ -319,7 +322,7 @@ class FromClientToNode(object):
         return put_data.encode('utf-8'), identifier
 
     @staticmethod
-    def put_file(**kw):
+    def put_file(node_identifier, **kw):
         '''
         ClientPut\n
         URI=something\n
@@ -342,6 +345,9 @@ class FromClientToNode(object):
 
         ##########
         
+        arg:
+        - node_identifier
+
         keywords:
         - uri
         - metadata_content_type
@@ -371,6 +377,9 @@ class FromClientToNode(object):
         for more info https://github.com/freenet/wiki/wiki/FCPv2-ClientPut
         Note: this function is used only from sending direct data, no file and no directory
         '''
+
+        if not node_identifier:
+            raise Exception('node_identifier is required')
 
         # It is made by someone (maybe Arnebab).
         # I do not want to touch it
@@ -412,14 +421,13 @@ class FromClientToNode(object):
                         'override_splitfile_crypto_key' : {'type' : 'string', 'required': False} ,
                         'real_time_flag' : {'type' : 'boolean', 'required': False} ,
                         'metadata_threshold' : {'type' : 'integer', 'required': False} ,
-                        'file_path' : {'type' : 'integer', 'required': True, 'empty': False} ,
-                        'node_identifier' : {'type' : 'string', 'required': True, 'empty': False}
+                        'file_path' : {'type' : 'string', 'required': True, 'empty': False} ,
                     }
 
         v_succ = Validator(schema_succ)
 
         if not v_succ.validate(kw):
-            return v_succ.errors
+            raise Exception(v_succ.errors)
 
         uri = kw.get('uri')
         put_f += 'URI={0}\n'.format(uri)
@@ -431,15 +439,15 @@ class FromClientToNode(object):
         if not PosixPath(file_path).exists():
                 raise FileNotFoundError('File not found: {0}'.format(file_path))
 
-        put_f += 'Filename\n{0}'.format(file_path)
+        put_f += 'Filename={0}\n'.format(file_path)
 
         file_hash = base64.b64encode(
-                      sha256dda(kw['node_identifier'], identifier, 
+                      sha256dda(node_identifier, identifier, 
                       file_path)).decode('utf-8')
 
         put_f += 'FileHash={0}\n'.format(file_hash)
 
-        metadata_content_type = magic.from_file(file_path, mime=True).decode()
+        metadata_content_type = magic.from_file(file_path, mime=True)
         put_f += 'Metadata.ContentType={0}\n'.format(metadata_content_type)
 
         verbosity = kw.get('verbosity', 0)
@@ -478,11 +486,13 @@ class FromClientToNode(object):
         put_f += 'Persistence={0}\n'.format(persistence)
 
         target_filename = kw.get('target_filename', None)
+        if target_filename:
+            put_f += 'TargetFilename={0}\n'.format(target_filename)
 
         early_encode = kw.get('early_encode', False)
         put_f += 'EarlyEncode={0}\n'.format(early_encode)
 
-        upload_from = 'direct'
+        upload_from = 'disk'
         put_f += 'UploadFrom={0}\n'.format(upload_from)
 
         binary_blob = kw.get('binary_blob', False)
@@ -521,8 +531,185 @@ class FromClientToNode(object):
         return put_f.encode('utf-8'), identifier
 
     @staticmethod
-    def put_redirect(self):
-        pass
+    def put_redirect(**kw):
+        '''
+        ClientPut\n
+        URI=CHK@\n
+        Metadata.ContentType=text/html\n # you dont need it because magic will do the job
+        Identifier=something\n
+        Verbosity=0\n
+        MaxRetries=10\n
+        PriorityClass=1\n
+        GetCHKOnly=false\n
+        TargetURI=something\n
+        TargetFilename=me.html\n
+        Global=false\n
+        DontCompress=false\n
+        Codecs=LZMA\n
+        ClientToken=Hello!!!\n
+        UploadFrom=redirect\n
+        LocalRequestOnly=false\n
+        EndMessage\n
+
+        ##########
+        
+        arg:
+        - node_identifier
+
+        keywords:
+        - uri
+        - metadata_content_type
+        - verbosity
+        - max_retries
+        - priority_class
+        - get_chk_only
+        - global_queue
+        - codecs
+        - dont_compress
+        - client_token
+        - persistence
+        - target_filename
+        - early_encode
+        - binary_blob
+        - fork_on_cacheable
+        - extra_inserts_single_block
+        - extra_inserts_splitfile_header_block
+        - compatibility_mode
+        - local_request_only
+        - override_splitfile_crypto_key
+        - real_time_flag
+        - metadata_threshold
+        - target_uri
+
+        for more info https://github.com/freenet/wiki/wiki/FCPv2-ClientPut
+        Note: this function is used only from sending direct data, no file and no directory
+        '''
+
+        put_f = 'ClientPut\n'
+
+        schema_succ =   {
+                        'uri': {'type' : 'string', 'required': True, 'empty': False},
+                        'verbosity' : {'type' : 'integer' , 'required': False} ,
+                        'max_retries' : {'type' : 'integer', 'required': False, 'allowed': range(-1, 999999)} ,
+                        'priority_class' : {'type' : 'integer', 'allowed': [0, 1, 2, 3, 4, 5, 6], 'required': False} ,
+                        'get_chk_only' : {'type' : 'boolean', 'required': False} ,
+                        'global_queue' : {'type' : 'boolean' , 'required': False} ,
+                        'codecs' : {'type' : 'string', 'required': False} ,
+                        'dont_compress' : {'type' : 'boolean', 'required': False} ,
+                        'client_token' : {'type' : 'string', 'required': False} ,
+                        'persistence' : {'type' : 'string','allowed': ['connection','forever','reboot'], 'required': False } ,
+                        'target_filename' : {'type' : 'string', 'required': False} ,
+                        'early_encode' : {'type' : 'boolean', 'required': False} ,
+                        'metadata_content_type' : {'type' : 'string', 'required': False} ,
+                        'binary_blob' : {'type' : 'boolean', 'required': False} ,
+                        'fork_on_cacheable' : {'type' : 'boolean', 'required': False} ,
+                        'extra_inserts_single_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'extra_inserts_splitfile_header_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'compatibility_mode' : {'type' : 'string', 'required': False} ,
+                        'local_request_only' : {'type' : 'boolean', 'required': False} ,
+                        'override_splitfile_crypto_key' : {'type' : 'string', 'required': False} ,
+                        'real_time_flag' : {'type' : 'boolean', 'required': False} ,
+                        'metadata_threshold' : {'type' : 'integer', 'required': False} ,
+                        'target_uri' : {'type' : 'string', 'required': True, 'empty': False} ,
+                    }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        uri = kw.get('uri')
+        put_f += 'URI={0}\n'.format(uri)
+
+        identifier = get_a_uuid()
+        put_f += 'Identifier={0}\n'.format(identifier)
+
+        target_uri = kw.get('target_uri')
+
+        put_f += 'TargetURI={0}\n'.format(target_uri)
+
+        metadata_content_type = kw.get('metadata_content_type', 'application/octet-stream')
+        put_f += 'Metadata.ContentType={0}\n'.format(metadata_content_type)
+
+        verbosity = kw.get('verbosity', 0)
+        put_f += 'Verbosity={0}\n'.format(verbosity)
+
+        max_retries = kw.get('max_retries', -1)
+        put_f += 'MaxRetries={0}\n'.format(max_retries)
+        
+        priority_class = kw.get('priority_class', 2)
+        put_f += 'PriorityClass={0}\n'.format(priority_class)
+        
+        get_chk_only = kw.get('get_chk_only', False)
+        put_f += 'GetCHKOnly={0}\n'.format(get_chk_only)
+        
+        global_queue = kw.get('global_queue', False)
+        put_f += 'Global={0}\n'.format(global_queue)
+        
+        dont_compress = kw.get('dont_compress', False)
+        put_f += 'DontCompress={0}\n'.format(dont_compress)
+
+        if not dont_compress:
+            codecs = kw.get('codecs', None)
+            if not codecs:
+                codecs = 'list of codes'
+                put_f += 'Codecs={0}\n'.format(codecs)
+        
+        client_token = kw.get('client_token', None)
+        if client_token != None:
+            put_f += 'ClientToken={0}\n'.format(client_token)
+
+        persistence = kw.get('persistence', 'connection')
+
+        if global_queue:
+            persistence = 'forever'
+
+        put_f += 'Persistence={0}\n'.format(persistence)
+
+        target_filename = kw.get('target_filename', None)
+        if target_filename:
+            put_f += 'TargetFilename={0}\n'.format(target_filename)
+
+        early_encode = kw.get('early_encode', False)
+        put_f += 'EarlyEncode={0}\n'.format(early_encode)
+
+        upload_from = 'redirect'
+        put_f += 'UploadFrom={0}\n'.format(upload_from)
+
+        binary_blob = kw.get('binary_blob', False)
+        put_f += 'BinaryBlob={0}\n'.format(binary_blob)
+
+        fork_on_cacheable = kw.get('fork_on_cacheable', True)
+        put_f += 'ForkOnCacheable={0}\n'.format(fork_on_cacheable)
+
+        extra_inserts_single_block = kw.get('extra_inserts_single_block', None)
+        if extra_inserts_single_block != None:
+            put_f += 'ExtraInsertsSingleBlock ={0}\n'.format(extra_inserts_single_block)
+
+        extra_inserts_splitfile_header_block = kw.get('extra_inserts_splitfile_header_block', None)
+        if extra_inserts_splitfile_header_block != None:
+            put_f += 'ExtraInsertsSplitfileHeaderBlock={0}\n'.format(extra_inserts_single_block)
+
+        compatibility_mode = kw.get('compatibility_mode', None)
+        if compatibility_mode != None:
+            put_f += 'CompatibilityMode={0}\n'.format(compatibility_mode)
+
+        local_request_only = kw.get('local_request_only', False)
+        put_f += 'LocalRequestOnly ={0}\n'.format(local_request_only)
+
+        override_splitfile_crypto_key = kw.get('override_splitfile_crypto_key', None)
+        if override_splitfile_crypto_key != None:
+            put_f += 'OverrideSplitfileCryptoKey ={0}\n'.format(override_splitfile_crypto_key)
+
+        real_time_flag = kw.get('real_time_flag', False)
+        put_f += 'RealTimeFlag={0}\n'.format(real_time_flag)
+
+        metadata_threshold = kw.get('metadata_threshold', -1)
+        put_f += 'MetadataThreshold ={0}\n'.format(metadata_threshold)
+
+        put_f += 'EndMessage\n'
+
+        return put_f.encode('utf-8'), identifier
 
     @staticmethod
     def put_directory(self):
@@ -629,6 +816,119 @@ class FromClientToNode(object):
         get_data += 'EndMessage\n'
 
         return get_data.encode('utf-8'), identifier 
+
+    @staticmethod
+    def get_file(**kw):
+
+        '''
+        ClientGet\n
+        IgnoreDS=false\n
+        DSOnly=false\n
+        URI=USK@something\n
+        Identifier=Request Number One\n
+        Verbosity=0\n
+        ReturnType=disk\n
+        MaxSize=100\n
+        MaxTempSize=1000\n
+        MaxRetries=100\n
+        PriorityClass=1\n
+        Persistence=forever\n
+        ClientToken=hello\n
+        Filename=something\n
+        TempFilename=something\n
+        Global=false\n
+        BinaryBlob=false\n
+        FilterData=true\n
+        EndMessage\n
+
+        ###
+        keywords:
+        - uri
+        - ds_only
+        - verbosity
+        - ignore_ds
+        - priority_class
+        - max_size
+        - global_queue
+        - max_temp_size
+        - max_retries
+        - client_token
+        - persistence
+        - binary_blob
+        - filter_data
+        - initial_metadata_data_length
+        - filename
+        - temp_filename
+        '''
+
+        get_f = 'ClientGet\n'
+
+        schema_succ =   {
+
+                        'uri': {'type' : 'string', 'required': True, 'empty': False },
+                        'ds_only' : {'type' : 'boolean', 'required': False } ,
+                        'verbosity' : {'type' : 'integer' , 'required': False}  ,
+                        'ignore_ds' : {'type' : 'boolean', 'required': False } ,
+                        'priority_class' : {'type' : 'integer', 'allowed': [0, 1, 2, 3, 4, 5, 6], 'required': False } ,
+                        'max_size' : {'type' : 'integer', 'required': False } ,
+                        'global_queue' : {'type' : 'boolean' , 'required': False } ,
+                        'max_temp_size' : {'type' : 'integer', 'required': False } ,
+                        'max_retries' : {'type' : 'integer', 'required': False } ,
+                        'client_token' : {'type' : 'string', 'required': False } ,
+                        'persistence' : {'type' : 'string','allowed': ['connection','forever','reboot'], 'required': False } ,
+                        'binary_blob' : {'type' : 'boolean', 'required': False } ,
+                        'filter_data' : {'type' : 'boolean', 'required': False } ,
+                        'initial_metadata_data_length' : {'type' : 'boolean', 'required': False } ,
+                        'filename' : {'type' : 'string', 'required': True, 'empty' : False } ,
+                        'temp_filename' : {'type' : 'string', 'required': False } , 
+                    }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        identifier = get_a_uuid()
+
+        ignore_ds = kw.get('ignore_ds', False)
+        get_f += 'IgnoreDS={}\n'.format(ignore_ds)
+
+        ds_only = kw.get('ds_only', False)
+        get_f += 'DSOnly={}\n'.format(ds_only)
+
+        uri = kw['uri']
+        get_f += 'URI={}\n'.format(uri)
+
+        global_queue = kw.get('global_queue', False)
+        get_f += 'Global={}\n'.format(global_queue)
+
+        get_f += 'Identifier={}\n'.format(identifier)
+
+        persistent = kw.get('persistent', 'connection')
+
+        if global_queue:
+            persistent = 'forever'
+
+        get_f += 'Persistence={}\n'.format(persistent)
+
+        priority_class = kw.get('priority_class', 2)
+        get_f += 'PriorityClass={}\n'.format(priority_class)
+
+        get_f += 'ReturnType=disk\n'
+
+        filter_data = kw.get('filter_data', False)
+        get_f += 'FilterData=false\n'
+
+        filename = kw['filename']
+        get_f += f'Filename={filename}\n'
+
+        temp_filename = kw.get('temp_filename', None)
+        if temp_filename:
+            get_f += f'TempFilename={temp_filename}\n'
+
+        get_f += 'EndMessage\n'
+
+        return get_f.encode('utf-8'), identifier 
 
     @staticmethod
     def get_request_status(identifier):
@@ -872,6 +1172,13 @@ class FromNodeToClient(object):
          'PriorityClass': '1', 'Verbosity': '0', 'ReturnType': 'direct', 
          'URI': 'SSK@xsomething', 
          'MaxSize': '9223372036854775807', 'Global': 'false', 'RealTime': 'false', 'footer': 'EndMessage'}
+
+         {'header': 'PersistentGet', 'MaxRetries': '0', 'Started': 'false', 'PriorityClass': '2', 
+         'Filename': '/usr/home/jamesaxl/Freenet/downloads/thing.ogg', 'Verbosity': '2147483647', 
+         'ReturnType': 'disk', 
+         'URI': 'CHK@yebutzYYDIXbZ1SoIzynbjMy0IadBTshfXpDp22K0pA,BwXjATt750cekkxDSIG75iVFM8FVpNGNAcJRRKURHpE,AAMC--8/metal.ogg', 
+         'MaxSize': '9223372036854775807', 'Global': 'true', 'Persistence': 'forever', 'BinaryBlob': 
+         'false', 'Identifier': 'JlMhQDLNTeWsVkK2Vlu8DQ', 'RealTime': 'false', 'footer': 'EndMessage'}
         '''
 
         schema_succ = {
@@ -879,6 +1186,7 @@ class FromNodeToClient(object):
                         'MaxRetries' : {'type' : 'string'} ,
                         'Started' : {'type' : 'string'} ,
                         'PriorityClass' : {'type' : 'string'} ,
+                        'Filename' : {'type' : 'string', 'required' : False} ,
                         'BinaryBlob' : {'type' : 'string'} ,
                         'Verbosity' : {'type' : 'string'} ,
                         'URI' : {'type' : 'string'} ,

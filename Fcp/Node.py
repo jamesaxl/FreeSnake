@@ -9,6 +9,8 @@ import logging
 import threading
 from threading import Timer
 from pathlib import Path, PurePosixPath
+import os
+import stat
 
 from .Schema import FromClientToNode
 from .Schema import FromNodeToClient
@@ -29,6 +31,7 @@ class Node(object):
         self.name_of_connection = None
         self.verbosity = None
         self.connected = False
+        self._node_identifier = None
 
         # socket or wss 
         self.__engine_mode = 'socket'
@@ -95,7 +98,7 @@ class Node(object):
             self.node = node
             self.uri_type = None
             self.name = None
-            self.tested_dda = {}
+            self._tested_dda = {}
 
         def say_hello(self):
 
@@ -158,8 +161,8 @@ class Node(object):
 
         def test_dda_response(self, **kw):
             
-            message, idenifier = FromClientToNode.test_dda_response(**kw)
-
+            message = FromClientToNode.test_dda_response(**kw)
+            
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
             time.sleep(1)
@@ -186,47 +189,57 @@ class Node(object):
             return job
 
         def put_file(self, **kw):
-            message, identifier = FromClientToNode.put_file(**kw)
+            message, identifier = FromClientToNode.put_file(self.node._node_identifier, **kw)
+            
+            directory = str(PurePosixPath(kw['file_path']).parent)
+            dda = (directory, True, False)
 
-            # job_test_dda_req = self.test_dda_request(directory = str(PurePosixPath(kw['file_path']).parent),
-            #                                          read = False, write = True)
+            if not self._tested_dda.get(dda, False):
+                self._tested_dda[dda] = False
+                logging.info('We should run test_dda befor puting files')
+                self.test_dda_request(directory = directory, read = True, write = False)
+          
+            time.sleep(2) # Give 2 seconds waiting TestDDAComplete
+            job = self.node.JobTicket(self.node)
+            self._tested_dda[dda] = True
+            # __Begin__ add a job
+            job.identifier = identifier
+            job.callback = None
+            job.message = message
+            self.node.job_store[identifier] = job
+            # __End__ add a job
 
-            # if not job_test_dda_req == 'Tested':
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
-            #     # I should get the response_test_dda_req here
-            #     write_filename = None
-            #     read_filename = None
-            #     read_content = None
-                
-            #     if 'ReadFilename' in self.response_test_dda_req:
-            #         read_filename = request_result['ReadFilename']
+            time.sleep(1)
 
-            #         if Path(read_filename).exists():
-            #             read_content = read_file.read_text('utf-8')
-            #         else:
-            #             read_content = ''
+            return job
 
-            #     if 'WriteFilename' in self.response_test_dda_req
-            #         content_to_write = self.response_test_dda_req['ContentToWrite']
-
-            #         write_filename = request_result['WriteFilename']
-            #         content_to_write = request_result['ContentToWrite'].encode('utf-8')
-            #         write_file = pathlib.Path(write_filename)
-
-            #         if write_file.exists():
-            #             write_file.write_bytes(content_to_write.encode('utf-8'))
-            #             write_file_stat_object = os.stat(write_filename)
-            #             write_file_mode = write_file_stat_object.st_mode
-            #             os.chmod(write_filename, write_file_mode | stat.S_IREAD | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
-                
-            #     time.sleep(1)
-                
-            #     job_test_dda_response = self.test_dda_response( directory = response_test_dda_req['Directory'],
-            #             read_content = read_content, read_file_name = read_filename)
-
+        def put_redirect(self, **kw):
+            message, identifier = FromClientToNode.put_redirect(**kw)
             job = self.node.JobTicket(self.node)
 
             # __Begin__ add a job
+            job.identifier = identifier
+            job.callback = None
+            job.message = message
+            self.node.job_store[identifier] = job
+            # __End__ add a job
+
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+
+            time.sleep(1)
+
+            return job
+
+        def put_directory(self, **kw):
+            pass
+
+        def get_data(self, **kw):
+            message, identifier = FromClientToNode.get_data(**kw)
+
+            # __Begin__ add a job
+            job = self.node.JobTicket(self.node)
             job.identifier = identifier
             job.callback = None
             job.message = message
@@ -241,20 +254,25 @@ class Node(object):
 
             return job
 
-        def put_redirect(self, **kw):
-            pass
+        def get_file(self, **kw):
+            message, identifier = FromClientToNode.get_file(**kw)
+            
+            directory = str(PurePosixPath(kw['filename']).parent)
+            dda = (directory, False, True)
 
-        def put_directory(self, **kw):
-            pass
-
-        def get_data(self, **kw):
-            message, identifier = FromClientToNode.get_data(**kw)
+            if not self._tested_dda.get(dda, False):
+                self._tested_dda[dda] = False
+                logging.info('We should run test_dda befor getting files')
+                self.test_dda_request(directory = directory, read = False, write = True)
+          
+            time.sleep(2) # Give 2 seconds waiting TestDDAComplete
 
             # __Begin__ add a job
             job = self.node.JobTicket(self.node)
             job.identifier = identifier
             job.callback = None
             job.message = message
+            job.is_file = True
             self.node.job_store[identifier] = job
             # __End__ add a job
 
@@ -376,16 +394,22 @@ class Node(object):
             self.running = False
             self.engine._close()
             logging.info('Stopping Reactor')
+            logging.info('Disconnect from Node')
+            self.node.connected = False
 
         def __reactor(self):
             data = self.engine.listen_to_node()
 
             if data == ''.encode('utf-8'):
                 self.__shutdown()
-                logging.info('Disconnect from Node')
                 return
-
-            p_data = barnamy_parsing_received_request(data)
+            
+            try:
+                p_data = barnamy_parsing_received_request(data)
+            except:
+                p_data = ['erer', 'erere']
+                print(data)
+                
 
             for item in p_data:
 
@@ -399,6 +423,7 @@ class Node(object):
                     response = FromNodeToClient.client_hello(item)
                     if response == 'Connection started':
                         self.node.connected = True
+                        self.node._node_identifier = item['ConnectionIdentifier']
                         logging.info(response)
 
                 elif FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item):
@@ -414,10 +439,50 @@ class Node(object):
                         logging.info('Generate keys')
 
                 elif FromNodeToClient.test_dda_reply(item):
-                    print(item)
+                    
+                    write_filename = None
+                    read_filename = ''
+                    read_content = ''
+                    directory = item['Directory']
+
+                    directory = item['Directory']
+                    if 'ReadFilename' in item:
+                        read_filename = item['ReadFilename']
+
+                        if Path(read_filename).exists():
+                            read_content = Path(read_filename).read_text('utf-8')
+                        else:
+                            read_content = ''
+
+                        
+                    if 'WriteFilename' in item and 'ContentToWrite' in item:
+                        write_filename = item['WriteFilename']
+                        content_to_write = item['ContentToWrite']
+                        write_file = Path(write_filename)
+
+                        #if write_file.exists():
+                        write_file.write_bytes(content_to_write.encode('utf-8'))
+                        write_file_stat_object = os.stat(write_filename)
+                        write_file_mode = write_file_stat_object.st_mode
+                        os.chmod(write_filename, write_file_mode | stat.S_IREAD | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+
+                    time.sleep(1)
+                    self.node.node_request.test_dda_response(directory = directory, 
+                                                             read_content = read_content, 
+                                                             read_filename = read_filename)
+
+                    if write_filename:
+                        if Path(write_filename).exists():
+                            file_to_delete = Path(write_filename)
+                            file_to_delete.unlink()
+
+                    print('')
+                    logging.info(item)
+
 
                 elif FromNodeToClient.test_dda_complete(item):
-                    print(item)
+                    print('')
+                    logging.info(item)
 
                 elif FromNodeToClient.persistent_put(item):
                     identifier = FromNodeToClient.persistent_put(item)
@@ -476,7 +541,7 @@ class Node(object):
                         job.progress= progress
                         # __End__ update a job
 
-                        logging.info('Progress {0}%'.format(progress))
+                        logging.info('Progress {0:.2f}%'.format(progress))
                         # callback if yes
 
                 elif FromNodeToClient.put_fetchable(item):
@@ -511,6 +576,7 @@ class Node(object):
                         # __Begin__ update a job
                         job.response = item
                         self.node.job_store[identifier].__del__()
+                        job.remove_from_queue_when_finish()
                         # __End__ update a job
 
                         logging.info('Put failed: {0}'.format(item['CodeDescription']))
@@ -521,6 +587,10 @@ class Node(object):
                     job = self.node.job_store.get(identifier, False)####
                     if job:
                         # __Begin__ update a job
+                        if item.get('Filename', False):
+                            if job.is_file:
+                                job.filename = item['Filename']
+                        
                         job.response = item
                         # __End__ update a job
 
@@ -532,7 +602,13 @@ class Node(object):
                     job = self.node.job_store.get(identifier, False)####
                     if job:
                         # __Begin__ update a job
-                        job.response = item
+                        if job.is_file:
+                            data_length = int(item['DataLength']) / 1000000
+                            job.response = (job.filename, item['Metadata.ContentType'],'{0:.2f}MB'.format(data_length))
+                            self.node.job_store[identifier].__del__()
+                            job.remove_from_queue_when_finish()
+                        else:
+                            job.response = item
                         # __End__ update a job
 
                         logging.info('Data found')
@@ -540,6 +616,7 @@ class Node(object):
                 elif FromNodeToClient.all_data(item):
                     identifier = FromNodeToClient.all_data(item)
                     job = self.node.job_store.get(identifier, False)####
+                    
                     if job:
                         # __Begin__ update a job
                         job.response = item['Metadata.ContentType'], item['Data'], item['DataLength']
@@ -620,14 +697,38 @@ class Node(object):
         def __init__(self, node):
             self.__node = node
 
+            self.__is_file = False
+            self.__filename = None
+
             self.__identifier = None
             self.__request = None
             self.__response = 'Sending'
+
             self.__callback = None
             self.__ready = False
             self.__progress = 0
+
+            # After
             self.__message = None
+
+            # After
             self.__request = None
+
+        @property
+        def filename(self):
+            return self.__filename
+
+        @filename.setter
+        def filename(self, value):
+            self.__filename = value
+
+        @property
+        def is_file(self):
+            return self.__is_file
+
+        @is_file.setter
+        def is_file(self, value):
+            self.__is_file = value
 
         @property
         def identifier(self):
@@ -690,8 +791,8 @@ class Node(object):
             self.__node.node_request.remove_request(self.__identifier)
 
         def get_data(self):
-            if isinstance(response, dict):
-                if response.get('header', False) == 'DataFound':
+            if isinstance(self.__response, dict):
+                if self.__response.get('header', False) == 'DataFound':
                     #FIXME: We Should Ask Arnebab Again
                     self.__node.node_request.get_request_status(self.__identifier)
                     self.__node.node_request.get_request_status(self.__identifier)
