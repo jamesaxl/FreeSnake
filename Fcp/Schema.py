@@ -319,7 +319,7 @@ class FromClientToNode(object):
         put_d += 'DataLength={0}\n'.format(data_length)
         put_d += 'Data\n{0}\n'.format(data)
 
-        return put_data.encode('utf-8'), identifier
+        return put_d.encode('utf-8'), identifier
 
     @staticmethod
     def put_file(node_identifier, **kw):
@@ -395,7 +395,6 @@ class FromClientToNode(object):
             """
             tohash = b'-'.join([node_identifier.encode('utf-8'), identifier.encode('utf-8'), open(path_of_file, "rb").read()])
             return hashlib.sha256(tohash).digest()
-
 
         put_f = 'ClientPut\n'
 
@@ -712,14 +711,603 @@ class FromClientToNode(object):
         return put_f.encode('utf-8'), identifier
 
     @staticmethod
-    def put_directory(self):
+    def put_directory_files(**kw):
         ''' 
+        ClientPutComplexDir\n
+        URI=something@\n
+        Identifier=something\n
+        Verbosity=0\n
+        MaxRetries=10\n
+        PriorityClass=1\n
+        GetCHKOnly=false\n
+        Global=false\n
+        DontCompress=true\n
+        ClientToken=Hello!!!\n
+        LocalRequestOnly=false\n
+        DefaultName=name\n
+        Files.N.Name=file name\n
+        Files.N.UploadFrom=disk\n
+        Files.N.Filename=path/of/filename\n
+        Files.N.Metadata.ContentType\n  # You dont need it because magic will do the job :)
+        EndMessage\n
+
+        ##########
+
+        keywords:
+        - uri
+        - verbosity
+        - max_retries
+        - priority_class
+        - get_chk_only
+        - global_queue
+        - codecs
+        - dont_compress
+        - client_token
+        - persistence
+        - early_encode
+        - binary_blob
+        - fork_on_cacheable
+        - extra_inserts_single_block
+        - extra_inserts_splitfile_header_block
+        - compatibility_mode
+        - local_request_only
+        - override_splitfile_crypto_key
+        - real_time_flag
+        - metadata_threshold
+        - directory
+        - site_name
+        - default_name: Default index, e.g index.html if you set name 
+                        of file that not exists in directory you are going to have an exception
+
+        for more info https://github.com/freenet/wiki/wiki/FCPv2-ClientPutComplexDir
+        Note: this function is used only from sending direct data, no file and no directory
         '''
-        pass
+
+        put_directory_f = 'ClientPutComplexDir\n'
+
+        schema_succ =   {
+
+                        'uri': {'type' : 'string', 'required': True, 'empty': False},
+                        'verbosity' : {'type' : 'integer' , 'required': False} ,
+                        'max_retries' : {'type' : 'integer', 'required': False, 'allowed': range(-1, 999999)} ,
+                        'priority_class' : {'type' : 'integer', 'allowed': [0, 1, 2, 3, 4, 5, 6], 'required': False} ,
+                        'get_chk_only' : {'type' : 'boolean', 'required': False} ,
+                        'global_queue' : {'type' : 'boolean' , 'required': False} ,
+                        'codecs' : {'type' : 'string', 'required': False} ,
+                        'dont_compress' : {'type' : 'boolean', 'required': False} ,
+                        'client_token' : {'type' : 'string', 'required': False} ,
+                        'persistence' : {'type' : 'string','allowed': ['connection','forever','reboot'], 'required': False } ,
+                        'early_encode' : {'type' : 'boolean', 'required': False} ,
+                        'binary_blob' : {'type' : 'boolean', 'required': False} ,
+                        'fork_on_cacheable' : {'type' : 'boolean', 'required': False} ,
+                        'extra_inserts_single_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'extra_inserts_splitfile_header_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'compatibility_mode' : {'type' : 'string', 'required': False} ,
+                        'local_request_only' : {'type' : 'boolean', 'required': False} ,
+                        'override_splitfile_crypto_key' : {'type' : 'string', 'required': False} ,
+                        'real_time_flag' : {'type' : 'boolean', 'required': False} ,
+                        'metadata_threshold' : {'type' : 'integer', 'required': False} ,
+                        'default_name' : {'type' : 'string', 'required': False} ,
+                        'directory' : {'type' : 'string', 'required': True, 'empty': False} ,
+                        'site_name' : {'type' : 'string', 'required': True, 'empty': False} ,
+                    }
+
+        v_succ = Validator(schema_succ)
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        default_name = kw['default_name']
+        directory = kw['directory']
+
+        if not PosixPath('{0}/{1}'.format(directory, default_name)).exists():
+            raise FileNotFoundError('File not found: {0}'.format(default_name))
+
+        site_name = kw['site_name']
+
+        uri = kw.get('uri')
+
+        put_directory_f += 'URI={0}\n'.format(uri)
+
+        identifier = get_a_uuid()
+        put_directory_f += 'Identifier={0}\n'.format(identifier)
+
+        verbosity = kw.get('verbosity', 0)
+        put_directory_f += 'Verbosity={0}\n'.format(verbosity)
+
+        max_retries = kw.get('max_retries', -1)
+        put_directory_f += 'MaxRetries={0}\n'.format(max_retries)
+
+        priority_class = kw.get('priority_class', 2)
+        put_directory_f += 'PriorityClass={0}\n'.format(priority_class)
+
+        get_chk_only = kw.get('get_chk_only', False)
+        put_directory_f += 'GetCHKOnly={0}\n'.format(get_chk_only)
+
+        global_queue = kw.get('global_queue', False)
+        put_directory_f += 'Global={0}\n'.format(global_queue)
+
+        dont_compress = kw.get('dont_compress', False)
+        put_directory_f += 'DontCompress={0}\n'.format(dont_compress)
+
+        if not dont_compress:
+            codecs = kw.get('codecs', None)
+            if not codecs:
+                codecs = 'list of codes'
+                put_directory_f += 'Codecs={0}\n'.format(codecs)
+
+        client_token = kw.get('client_token', None)
+        if client_token != None:
+            put_directory_f += 'ClientToken={0}\n'.format(client_token)
+
+        persistence = kw.get('persistence', 'connection')
+
+        if global_queue:
+            persistence = 'forever'
+
+        put_directory_f += 'Persistence={0}\n'.format(persistence)
+
+        target_filename = kw.get('target_filename', None)
+        if target_filename:
+            put_directory_f += 'TargetFilename={0}\n'.format(target_filename)
+
+        early_encode = kw.get('early_encode', False)
+        put_directory_f += 'EarlyEncode={0}\n'.format(early_encode)
+
+        binary_blob = kw.get('binary_blob', False)
+        put_directory_f += 'BinaryBlob={0}\n'.format(binary_blob)
+
+        fork_on_cacheable = kw.get('fork_on_cacheable', True)
+        put_directory_f += 'ForkOnCacheable={0}\n'.format(fork_on_cacheable)
+
+        extra_inserts_single_block = kw.get('extra_inserts_single_block', None)
+        if extra_inserts_single_block != None:
+            put_directory_f += 'ExtraInsertsSingleBlock ={0}\n'.format(extra_inserts_single_block)
+
+        extra_inserts_splitfile_header_block = kw.get('extra_inserts_splitfile_header_block', None)
+        if extra_inserts_splitfile_header_block != None:
+            put_directory_f += 'ExtraInsertsSplitfileHeaderBlock={0}\n'.format(extra_inserts_single_block)
+
+        compatibility_mode = kw.get('compatibility_mode', None)
+        if compatibility_mode != None:
+            put_directory_f += 'CompatibilityMode={0}\n'.format(compatibility_mode)
+
+        local_request_only = kw.get('local_request_only', False)
+        put_directory_f += 'LocalRequestOnly ={0}\n'.format(local_request_only)
+
+        override_splitfile_crypto_key = kw.get('override_splitfile_crypto_key', None)
+        if override_splitfile_crypto_key != None:
+            put_directory_f += 'OverrideSplitfileCryptoKey ={0}\n'.format(override_splitfile_crypto_key)
+
+        real_time_flag = kw.get('real_time_flag', False)
+        put_directory_f += 'RealTimeFlag={0}\n'.format(real_time_flag)
+
+        metadata_threshold = kw.get('metadata_threshold', -1)
+        put_directory_f += 'MetadataThreshold ={0}\n'.format(metadata_threshold)
+
+        # We should do our job
+
+
+        if not PosixPath(directory).exists():
+                raise FileNotFoundError('directory not found: {0}'.format(directory))
+
+        files = list(Path(directory).glob('*'))
+        for index, file in enumerate(files):
+            if Path(file).is_dir():
+                raise Exception('{0} is a sub-folder'.format(file))
+
+            put_directory_f += 'Files.{0}.Name={1}\n'.format(index, str(file.name))
+            put_directory_f += 'Files.{0}.UploadFrom=disk\n'.format(index)
+            put_directory_f += 'Files.{0}.Filename={1}\n'.format(index, file)
+            put_directory_f += 'Files.{0}.Metadata.ContentType={1}\n'.format(index, magic.from_file(str(file), mime=True))
+
+        put_directory_f += 'EndMessage\n'
+        return put_directory_f.encode('utf-8'), identifier
+
+    @staticmethod
+    def put_directory_redirect(**kw):
+        ''' 
+        ClientPutComplexDir\n
+        URI=something\n
+        Identifier=something\n
+        Verbosity=0\n
+        MaxRetries=10\n
+        PriorityClass=1\n
+        GetCHKOnly=false\n
+        Global=false\n
+        DontCompress=true\n
+        ClientToken=Hello!!!\n
+        LocalRequestOnly=false\n
+        DefaultName=name\n
+        Files.N.Name= name\n
+        Files.N.UploadFrom=redirect\n
+        Files.N.TargetURI=freenet uri\n
+        EndMessage\n
+
+        ##########
+
+        arg:
+        - node_identifier
+
+        keywords:
+        - uri
+        - verbosity
+        - max_retries
+        - priority_class
+        - get_chk_only
+        - global_queue
+        - codecs
+        - dont_compress
+        - client_token
+        - persistence
+        - early_encode
+        - binary_blob
+        - fork_on_cacheable
+        - extra_inserts_single_block
+        - extra_inserts_splitfile_header_block
+        - compatibility_mode
+        - local_request_only
+        - override_splitfile_crypto_key
+        - real_time_flag
+        - metadata_threshold
+        - target_uri_list: {name : 'Arnebab', uri : 'SSK@somehing', 'Linus' : 'CHK@something'}
+        - site_name
+        - default_name: Default index, e.g index.html if you set name 
+                        of file that not exists in directory you are going to have an exception
+
+        for more info https://github.com/freenet/wiki/wiki/FCPv2-ClientPutComplexDir
+        Note: this function is used only from sending direct data, no file and no directory
+        '''
+
+        put_directory_r = 'ClientPutComplexDir\n'
+
+        schema_succ =   {
+
+                        'uri': {'type' : 'string', 'required': True, 'empty': False},
+                        'verbosity' : {'type' : 'integer' , 'required': False} ,
+                        'max_retries' : {'type' : 'integer', 'required': False, 'allowed': range(-1, 999999)} ,
+                        'priority_class' : {'type' : 'integer', 'allowed': [0, 1, 2, 3, 4, 5, 6], 'required': False} ,
+                        'get_chk_only' : {'type' : 'boolean', 'required': False} ,
+                        'global_queue' : {'type' : 'boolean' , 'required': False} ,
+                        'codecs' : {'type' : 'string', 'required': False} ,
+                        'dont_compress' : {'type' : 'boolean', 'required': False} ,
+                        'client_token' : {'type' : 'string', 'required': False} ,
+                        'persistence' : {'type' : 'string','allowed': ['connection','forever','reboot'], 'required': False } ,
+                        'early_encode' : {'type' : 'boolean', 'required': False} ,
+                        'binary_blob' : {'type' : 'boolean', 'required': False} ,
+                        'fork_on_cacheable' : {'type' : 'boolean', 'required': False} ,
+                        'extra_inserts_single_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'extra_inserts_splitfile_header_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'compatibility_mode' : {'type' : 'string', 'required': False} ,
+                        'local_request_only' : {'type' : 'boolean', 'required': False} ,
+                        'override_splitfile_crypto_key' : {'type' : 'string', 'required': False} ,
+                        'real_time_flag' : {'type' : 'boolean', 'required': False} ,
+                        'metadata_threshold' : {'type' : 'integer', 'required': False} ,
+                        'default_name' : {'type' : 'string', 'required': False} ,
+                        'target_uri_list' : {'type' : 'list', 'required': True, 'empty': False} ,
+                        'site_name' : {'type' : 'string', 'required': True, 'empty': False} ,
+                    }
+
+        v_succ = Validator(schema_succ)
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        flag_default_name = False
+
+        default_name = kw['default_name']
+
+        target_uri_list = kw['target_uri_list']
+
+        for uri in target_uri_list:
+            if default_name == uri['name']:
+                flag_default_name = True
+                break
+
+        if not flag_default_name:
+            raise Exception('default_name must exist in URI list "target_uri_list"')
+
+        site_name = kw['site_name']
+
+        uri = kw.get('uri')
+
+        put_directory_r += 'URI={0}\n'.format(uri)
+
+        identifier = get_a_uuid()
+        put_directory_r += 'Identifier={0}\n'.format(identifier)
+
+        verbosity = kw.get('verbosity', 0)
+        put_directory_r += 'Verbosity={0}\n'.format(verbosity)
+
+        max_retries = kw.get('max_retries', -1)
+        put_directory_r += 'MaxRetries={0}\n'.format(max_retries)
+
+        priority_class = kw.get('priority_class', 2)
+        put_directory_r += 'PriorityClass={0}\n'.format(priority_class)
+
+        get_chk_only = kw.get('get_chk_only', False)
+        put_directory_r += 'GetCHKOnly={0}\n'.format(get_chk_only)
+
+        global_queue = kw.get('global_queue', False)
+        put_directory_r += 'Global={0}\n'.format(global_queue)
+
+        dont_compress = kw.get('dont_compress', False)
+        put_directory_r += 'DontCompress={0}\n'.format(dont_compress)
+
+        if not dont_compress:
+            codecs = kw.get('codecs', None)
+            if not codecs:
+                codecs = 'list of codes'
+                put_directory_r += 'Codecs={0}\n'.format(codecs)
+
+        client_token = kw.get('client_token', None)
+        if client_token != None:
+            put_directory_r += 'ClientToken={0}\n'.format(client_token)
+
+        persistence = kw.get('persistence', 'connection')
+
+        if global_queue:
+            persistence = 'forever'
+
+        put_directory_r += 'Persistence={0}\n'.format(persistence)
+
+        target_filename = kw.get('target_filename', None)
+        if target_filename:
+            put_directory_r += 'TargetFilename={0}\n'.format(target_filename)
+
+        early_encode = kw.get('early_encode', False)
+        put_directory_r += 'EarlyEncode={0}\n'.format(early_encode)
+
+        binary_blob = kw.get('binary_blob', False)
+        put_directory_r += 'BinaryBlob={0}\n'.format(binary_blob)
+
+        fork_on_cacheable = kw.get('fork_on_cacheable', True)
+        put_directory_r += 'ForkOnCacheable={0}\n'.format(fork_on_cacheable)
+
+        extra_inserts_single_block = kw.get('extra_inserts_single_block', None)
+        if extra_inserts_single_block != None:
+            put_directory_r += 'ExtraInsertsSingleBlock ={0}\n'.format(extra_inserts_single_block)
+
+        extra_inserts_splitfile_header_block = kw.get('extra_inserts_splitfile_header_block', None)
+        if extra_inserts_splitfile_header_block != None:
+            put_directory_r += 'ExtraInsertsSplitfileHeaderBlock={0}\n'.format(extra_inserts_single_block)
+
+        compatibility_mode = kw.get('compatibility_mode', None)
+        if compatibility_mode != None:
+            put_directory_r += 'CompatibilityMode={0}\n'.format(compatibility_mode)
+
+        local_request_only = kw.get('local_request_only', False)
+        put_directory_r += 'LocalRequestOnly={0}\n'.format(local_request_only)
+
+        override_splitfile_crypto_key = kw.get('override_splitfile_crypto_key', None)
+        if override_splitfile_crypto_key != None:
+            put_directory_r += 'OverrideSplitfileCryptoKey ={0}\n'.format(override_splitfile_crypto_key)
+
+        real_time_flag = kw.get('real_time_flag', False)
+        put_directory_r += 'RealTimeFlag={0}\n'.format(real_time_flag)
+
+        metadata_threshold = kw.get('metadata_threshold', -1)
+        put_directory_r += 'MetadataThreshold={0}\n'.format(metadata_threshold)
+
+        # We should do our job
+
+        for index, uri in enumerate(target_uri_list):
+            put_directory_r += 'Files.{0}.Name={1}\n'.format(index, uri['name'])
+            put_directory_r += 'Files.{0}.UploadFrom=redirect\n'.format(index)
+            put_directory_r += 'Files.{0}.TargetURI={1}\n'.format(index, uri['uri'])
+
+        put_directory_r += 'EndMessage\n'
+        return put_directory_r.encode('utf-8'), identifier
+
+    @staticmethod
+    def put_directory_data(**kw):
+        ''' 
+        ClientPutComplexDir\n
+        URI=something\n
+        Identifier=something\n
+        Verbosity=0\n
+        MaxRetries=10\n
+        PriorityClass=1\n
+        GetCHKOnly=false\n
+        Global=false\n
+        DontCompress=true\n
+        ClientToken=Hello!!!\n
+        LocalRequestOnly=false\n
+        DefaultName=name\n
+        Files.N.Name= name\n
+        Files.N.UploadFrom=direct\n
+        Files.N.DataLength=length_of_every_data\n
+        EndMessage\n
+
+        ##########
+
+        arg:
+        - node_identifier
+
+        keywords:
+        - uri
+        - verbosity
+        - max_retries
+        - priority_class
+        - get_chk_only
+        - global_queue
+        - codecs
+        - dont_compress
+        - client_token
+        - persistence
+        - early_encode
+        - binary_blob
+        - fork_on_cacheable
+        - extra_inserts_single_block
+        - extra_inserts_splitfile_header_block
+        - compatibility_mode
+        - local_request_only
+        - override_splitfile_crypto_key
+        - real_time_flag
+        - metadata_threshold
+        - site_name
+        - default_name: Default index, e.g index.html if you set name 
+                        of file that not exists in directory you are going to have an exception
+
+        for more info https://github.com/freenet/wiki/wiki/FCPv2-ClientPutComplexDir
+        Note: this function is used only from sending direct data, no file and no directory
+        '''
+
+        put_directory_d = 'ClientPutComplexDir\n'
+
+        schema_succ =   {
+
+                        'uri': {'type' : 'string', 'required': True, 'empty': False},
+                        'verbosity' : {'type' : 'integer' , 'required': False} ,
+                        'max_retries' : {'type' : 'integer', 'required': False, 'allowed': range(-1, 999999)} ,
+                        'priority_class' : {'type' : 'integer', 'allowed': [0, 1, 2, 3, 4, 5, 6], 'required': False} ,
+                        'get_chk_only' : {'type' : 'boolean', 'required': False} ,
+                        'global_queue' : {'type' : 'boolean' , 'required': False} ,
+                        'codecs' : {'type' : 'string', 'required': False} ,
+                        'dont_compress' : {'type' : 'boolean', 'required': False} ,
+                        'client_token' : {'type' : 'string', 'required': False} ,
+                        'persistence' : {'type' : 'string','allowed': ['connection','forever','reboot'], 'required': False } ,
+                        'early_encode' : {'type' : 'boolean', 'required': False} ,
+                        'binary_blob' : {'type' : 'boolean', 'required': False} ,
+                        'fork_on_cacheable' : {'type' : 'boolean', 'required': False} ,
+                        'extra_inserts_single_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'extra_inserts_splitfile_header_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'compatibility_mode' : {'type' : 'string', 'required': False} ,
+                        'local_request_only' : {'type' : 'boolean', 'required': False} ,
+                        'override_splitfile_crypto_key' : {'type' : 'string', 'required': False} ,
+                        'real_time_flag' : {'type' : 'boolean', 'required': False} ,
+                        'metadata_threshold' : {'type' : 'integer', 'required': False} ,
+                        'default_name' : {'type' : 'string', 'required': False} ,
+                        'site_name' : {'type' : 'string', 'required': True, 'empty': False} ,
+                        'directory' : {'type' : 'string', 'required': True, 'empty': False} ,
+                    }
+
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        directory = kw['directory']
+        default_name = kw['default_name']
+
+        if not PosixPath(directory).exists():
+                raise FileNotFoundError('directory not found: {0}'.format(directory))
+
+        files = list(Path(directory).glob('*'))
+        for index, file in enumerate(files):
+            if Path(file).is_dir():
+                raise Exception('{0} is a sub-folder'.format(file))
+
+        if not PosixPath('{0}/{1}'.format(directory, default_name)).exists():
+            raise FileNotFoundError('File not found: {0}'.format(default_name))
+
+        site_name = kw['site_name']
+
+        uri = kw.get('uri')
+
+        put_directory_d += 'URI={0}\n'.format(uri)
+
+        identifier = get_a_uuid()
+        put_directory_d += 'Identifier={0}\n'.format(identifier)
+
+        verbosity = kw.get('verbosity', 0)
+        put_directory_d += 'Verbosity={0}\n'.format(verbosity)
+
+        max_retries = kw.get('max_retries', -1)
+        put_directory_d += 'MaxRetries={0}\n'.format(max_retries)
+
+        priority_class = kw.get('priority_class', 2)
+        put_directory_d += 'PriorityClass={0}\n'.format(priority_class)
+
+        get_chk_only = kw.get('get_chk_only', False)
+        put_directory_d += 'GetCHKOnly={0}\n'.format(get_chk_only)
+
+        global_queue = kw.get('global_queue', False)
+        put_directory_d += 'Global={0}\n'.format(global_queue)
+
+        dont_compress = kw.get('dont_compress', False)
+        put_directory_d += 'DontCompress={0}\n'.format(dont_compress)
+
+        if not dont_compress:
+            codecs = kw.get('codecs', None)
+            if not codecs:
+                codecs = 'list of codes'
+                put_directory_d += 'Codecs={0}\n'.format(codecs)
+
+        client_token = kw.get('client_token', None)
+        if client_token != None:
+            put_directory_d += 'ClientToken={0}\n'.format(client_token)
+
+        persistence = kw.get('persistence', 'connection')
+
+        if global_queue:
+            persistence = 'forever'
+
+        put_directory_d += 'Persistence={0}\n'.format(persistence)
+
+        target_filename = kw.get('target_filename', None)
+        if target_filename:
+            put_directory_d += 'TargetFilename={0}\n'.format(target_filename)
+
+        early_encode = kw.get('early_encode', False)
+        put_directory_d += 'EarlyEncode={0}\n'.format(early_encode)
+
+        binary_blob = kw.get('binary_blob', False)
+        put_directory_d += 'BinaryBlob={0}\n'.format(binary_blob)
+
+        fork_on_cacheable = kw.get('fork_on_cacheable', True)
+        put_directory_d += 'ForkOnCacheable={0}\n'.format(fork_on_cacheable)
+
+        extra_inserts_single_block = kw.get('extra_inserts_single_block', None)
+        if extra_inserts_single_block != None:
+            put_directory_d += 'ExtraInsertsSingleBlock ={0}\n'.format(extra_inserts_single_block)
+
+        extra_inserts_splitfile_header_block = kw.get('extra_inserts_splitfile_header_block', None)
+        if extra_inserts_splitfile_header_block != None:
+            put_directory_d += 'ExtraInsertsSplitfileHeaderBlock={0}\n'.format(extra_inserts_single_block)
+
+        compatibility_mode = kw.get('compatibility_mode', None)
+        if compatibility_mode != None:
+            put_directory_d += 'CompatibilityMode={0}\n'.format(compatibility_mode)
+
+        local_request_only = kw.get('local_request_only', False)
+        put_directory_d += 'LocalRequestOnly={0}\n'.format(local_request_only)
+
+        override_splitfile_crypto_key = kw.get('override_splitfile_crypto_key', None)
+        if override_splitfile_crypto_key != None:
+            put_directory_d += 'OverrideSplitfileCryptoKey ={0}\n'.format(override_splitfile_crypto_key)
+
+        real_time_flag = kw.get('real_time_flag', False)
+        put_directory_d += 'RealTimeFlag={0}\n'.format(real_time_flag)
+
+        metadata_threshold = kw.get('metadata_threshold', -1)
+        put_directory_d += 'MetadataThreshold={0}\n'.format(metadata_threshold)
+
+        # We should do our job
+        files = list(Path(directory).glob('*'))
+        data = []
+        for index, file in enumerate(files):
+            if Path(file).is_dir():
+                raise Exception('{0} is a sub-folder'.format(file))
+            
+            f = open(str(file), 'rb').read()
+            data.append(f)
+
+            put_directory_d += 'Files.{0}.Name={1}\n'.format(index, str(file.name))
+            put_directory_d += 'Files.{0}.UploadFrom=direct\n'.format(index)
+            put_directory_d += 'Files.{0}.Filename={1}\n'.format(index, file)
+            put_directory_d += 'Files.{0}.DataLength={1}\n'.format(index, str(file.stat().st_size))
+            put_directory_d += 'Files.{0}.Metadata.ContentType={1}\n'.format(index, magic.from_file(str(file), mime=True))
+            
+
+        put_directory_d += 'Data\n'
+
+        put_directory_d = put_directory_d.encode('utf-8')
+        put_directory_d += b''.join(data)
+
+        return put_directory_d, identifier
 
     @staticmethod
     def get_data(**kw):
-        
         '''
         ClientGet\n
         IgnoreDS=false\n
@@ -1079,8 +1667,8 @@ class FromNodeToClient(object):
 
             if uri_type == 'SSK':
                 if name:
-                    public_key = '{0}{1}/0'.format(parsing_data_generator['RequestURI'], name)
-                    private_key = '{0}{1}/0'.format(parsing_data_generator['InsertURI'], name)
+                    public_key = '{0}{1}-0'.format(parsing_data_generator['RequestURI'], name)
+                    private_key = '{0}{1}-0'.format(parsing_data_generator['InsertURI'], name)
                 else :
                     public_key = '{0}0'.format(parsing_data_generator['RequestURI'])
                     private_key = '{0}0'.format(parsing_data_generator['InsertURI'])
@@ -1098,11 +1686,13 @@ class FromNodeToClient(object):
 
             elif uri_type == 'KSK':
                 if name:
-                    return get_a_uuid() + '_' + name
+                    ksk = 'KSK@{0}-{1}'.format(get_a_uuid(5), name)
+                    return identifier, ksk
 
-                return get_a_uuid()
+                ksk = 'KSK@{0}'.format(get_a_uuid(5))
+                return identifier, ksk
 
-            return identifier, public_key, private_key
+            return identifier, (public_key, private_key)
 
         return False
 
@@ -1579,9 +2169,13 @@ def barnamy_parsing_sent_request(data):
 
 # Avoid collision. still under test though. I will try to make identify more complex
 # We should Ask Arnebab Again
-def get_a_uuid():
+def get_a_uuid(round = 3):
     r_uuid = base64.urlsafe_b64encode(uuid.uuid4().bytes)
-    return r_uuid.decode().replace('=', '')
+    key = ''
+    for i in range(round):
+        key += r_uuid.decode().replace('=', '')
+    
+    return key
 
 def check_freenet_key(uri):
     # We should ask Arnebab after

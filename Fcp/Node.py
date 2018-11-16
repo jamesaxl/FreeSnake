@@ -145,8 +145,13 @@ class Node(object):
             while not job.ready:
                 time.sleep(1)
 
-            pub, prv = job.response
+            if uri_type == 'KSK':
+                ksk = job.response
+                job.__del__()
+
+                return ksk
             
+            pub, prv = job.response
             job.__del__()
 
             return pub, prv
@@ -232,9 +237,56 @@ class Node(object):
 
             return job
 
-        def put_directory(self, **kw):
-            pass
+        def put_directory_files(self, **kw):
+            message, identifier = FromClientToNode.put_directory_files(**kw)
+            
+            directory = kw['directory']
+            dda = (directory, True, False)
 
+            if not self._tested_dda.get(dda, False):
+                self._tested_dda[dda] = False
+                logging.info('We should run test_dda befor puting files')
+                self.test_dda_request(directory = directory, read = True, write = False)
+          
+            time.sleep(2) # Give 2 seconds waiting TestDDAComplete
+            job = self.node.JobTicket(self.node)
+            self._tested_dda[dda] = True
+            # __Begin__ add a job
+            job.identifier = identifier
+            job.callback = None
+            job.message = message
+            self.node.job_store[identifier] = job
+            # __End__ add a job
+
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+
+            time.sleep(1)
+
+            return job
+
+         # Still under test
+        def put_directory_redirect(self, **kw):
+            message, identifier = FromClientToNode.put_directory_redirect(**kw)
+
+            print(message)
+
+        def put_directory_data(self, **kw):
+            message, identifier = FromClientToNode.put_directory_data(**kw)
+
+            job = self.node.JobTicket(self.node)
+            # __Begin__ add a job
+            job.identifier = identifier
+            job.callback = None
+            job.message = message
+            self.node.job_store[identifier] = job
+            # __End__ add a job
+
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+
+            time.sleep(1)
+
+            return job
+            
         def get_data(self, **kw):
             message, identifier = FromClientToNode.get_data(**kw)
 
@@ -427,11 +479,11 @@ class Node(object):
                         logging.info(response)
 
                 elif FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item):
-                    identifier, pub, prv = FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item)
-                    job = self.node.job_store.get(identifier, False)####
+                    identifier, key = FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item)
+                    job = self.node.job_store.get(identifier, False) ####
                     if job:
                         # __Begin__ update a job
-                        job.response = (pub, prv)
+                        job.response = key
                         job.ready = True
                         # __End__ update a job
 
@@ -791,6 +843,9 @@ class Node(object):
             self.__node.node_request.remove_request(self.__identifier)
 
         def get_data(self):
+            if self.is_file:
+                return
+
             if isinstance(self.__response, dict):
                 if self.__response.get('header', False) == 'DataFound':
                     #FIXME: We Should Ask Arnebab Again
