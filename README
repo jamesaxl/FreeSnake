@@ -1,0 +1,11 @@
+# FreeSnake
+
+## Introduction
+
+FreeSnak is a package that contains:
+ - Fcp (Freenet control protocol API).
+ - FsiteMsg (Freenet site manager GUI)
+ - Fchat (Freenet chat GUI).
+ - Fradio (Freenet Radio GUI).
+ - Ftube (freenet tube GUI. It will be used only in Darknet mode).
+   - Darknet Mode is: When you have a number of connections with friends.

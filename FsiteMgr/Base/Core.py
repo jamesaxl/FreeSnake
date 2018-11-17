@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 # NOTE: Donot use it it still under test
 
@@ -6,7 +7,7 @@ import configparser
 from pathlib import Path
 from time import gmtime, strftime
 
-from Fcp.Node import Node # ned to find a good import that will work anywhere
+from Fcp.Node import Node
 
 import logging
 
@@ -38,7 +39,7 @@ CONFIG_FILE = '{0}/conf'.format(CONFIG_DIR)
 
 class FsiteMgr(object):
 
-    def __init__(self, host = 'localhost', port = 9481):
+    def __init__(self, host = 'localhost', port = 9481, engine_mode = 'socket', gui = None):
 
         Path(CONFIG_DIR).mkdir(parents=True, exist_ok=True)
         config_file = Path(CONFIG_FILE)
@@ -53,7 +54,8 @@ class FsiteMgr(object):
             config = configparser.ConfigParser()
             config['DEFAULT'] = {  'HOST' : host, 
                                    'PORT' : port,
-                                   'NAME_OF_CONNECTION' : 'freesitemgr'}
+                                   'NAME_OF_CONNECTION' : 'freesitemgr',
+                                   'ENGINE_MODE' = engine_mode}
 
             with open(str(config_file), 'w') as configfile:
                 config.write(configfile)
@@ -62,7 +64,7 @@ class FsiteMgr(object):
         self.node.peer_addr = self.get_config()['HOST']
         self.node.peer_port = int(self.get_config()['PORT'])
         self.node.name_of_connection = self.get_config()['NAME_OF_CONNECTION']
-        self.node.engine_mode = 'socket'
+        self.node.engine_mode = self.get_config()['ENGINE_MODE']
         self.connect_to_node()
 
     def get_config(self):
@@ -94,13 +96,13 @@ class FsiteMgr(object):
 
         self.version = 0
 
-        job = self.node.node_request.put_directory(uri = self.prv,
+        job = self.node.node_request.put_directory(callback = self.create_site_callback, uri = self.prv,
                               uri_type = 'usk',
                               site_name = self.site_name.lower().replace(' ', '_'), directory = self.directory,
                               global_queue = True, persistence = 'forever', 
                               codecs = self.node.compression_codecs,
                               upload_from = 'disk', priority_class = 2, version = self.version,
-                              default_index = self.default_index, callback = self.create_site_callback)
+                              default_index = self.default_index)
 
         logging.info('Send request "create site" to node')
 
@@ -126,7 +128,7 @@ class FsiteMgr(object):
             self.version = site[10] + 1
             conn.commit()
             
-            job = self.node.node_request.put_directory(uri = prv,
+            job = self.node.node_request.put_directory(callback = self.create_site_callback, uri = prv,
                                   uri_type = 'usk',,
                                   site_name = self.site_name.lower().replace(' ', '_'), directory = directory,
                                   global_queue = True, persistence = 'forever', 
@@ -135,7 +137,7 @@ class FsiteMgr(object):
                                   #dont_compress = True,
                                   upload_from = 'disk',
                                   priority = int(self.get_config()['PRIORITY']), version = self.version,
-                                  default_index = default_index, callback = self.update_site_callback)
+                                  default_index = default_index)
 
             logging.info('Send request "update site" to node')
 
@@ -185,10 +187,10 @@ class FsiteMgr(object):
 
             site = cursor.fetchone()
             if site: 
-                return {'site_name' : site[1], 'description': site[2],'directory' : site[3],
+                return { 'site_name' : site[1], 'description': site[2],'directory' : site[3],
                         'create_at' : site[4], 'update_at' : site[5], 'public_key' : site[6], 
                         'private_key' : site[7], 'last_uri' : site[8], 'default_index' : site[9],
-                        'version' : site[10]}
+                        'version' : site[10] }
 
             return {}
 

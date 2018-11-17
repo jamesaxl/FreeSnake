@@ -1,4 +1,4 @@
-# encoding: utf-8
+# -*- coding: utf-8 -*-
 
 try:
     from cerberus import Validator
@@ -711,7 +711,7 @@ class FromClientToNode(object):
         return put_f.encode('utf-8'), identifier
 
     @staticmethod
-    def put_directory_files(**kw):
+    def put_complex_directory_files(**kw):
         ''' 
         ClientPutComplexDir\n
         URI=something@\n
@@ -904,7 +904,7 @@ class FromClientToNode(object):
         return put_directory_f.encode('utf-8'), identifier
 
     @staticmethod
-    def put_directory_redirect(**kw):
+    def put_complex_directory_redirect(**kw):
         ''' 
         ClientPutComplexDir\n
         URI=something\n
@@ -1098,7 +1098,7 @@ class FromClientToNode(object):
         return put_directory_r.encode('utf-8'), identifier
 
     @staticmethod
-    def put_directory_data(**kw):
+    def put_complex_directory_data(**kw):
         ''' 
         ClientPutComplexDir\n
         URI=something\n
@@ -1118,9 +1118,6 @@ class FromClientToNode(object):
         EndMessage\n
 
         ##########
-
-        arg:
-        - node_identifier
 
         keywords:
         - uri
@@ -1306,6 +1303,224 @@ class FromClientToNode(object):
 
         return put_directory_d, identifier
 
+    
+    @staticmethod
+    def put_directory_disk(**kw):
+        '''
+        ClientPutDiskDir
+        Identifier=My Identifier
+        Verbosity=1023
+        MaxRetries=999
+        PriorityClass=2
+        URI=CHK@
+        GetCHKOnly=true
+        DontCompress=true
+        ClientToken=My Client Token
+        Persistence=forever
+        Global=true
+        DefaultName=index.html
+        Filename=/path/to/directory
+        AllowUnreadableFiles=false // unless true, any unreadable files cause the whole request to fail; optional
+        IncludeHiddenFiles=true // unless true, any "hidden" files will be ignored (from 1424)
+        RealTimeFlag=false
+        EndMessage
+        
+        keywords:
+        - uri
+        - verbosity
+        - max_retries
+        - priority_class
+        - get_chk_only
+        - global_queue
+        - codecs
+        - dont_compress
+        - client_token
+        - persistence
+        - early_encode
+        - binary_blob
+        - fork_on_cacheable
+        - extra_inserts_single_block
+        - extra_inserts_splitfile_header_block
+        - compatibility_mode
+        - local_request_only
+        - override_splitfile_crypto_key
+        - real_time_flag
+        - metadata_threshold
+
+        - allow_unreadable_files 
+        - include_hidden_files
+        - ignore_usk_date_hints
+        - write_to_client_cache 
+        - override_splitfile_cryptokey
+        
+        - directory
+        - site_name
+        - default_name: Default index, e.g index.html if you set name 
+                        of file that not exists in directory you are going to have an exception
+
+        for more info https://github.com/freenet/wiki/wiki/FCPv2-ClientPutComplexDir
+        Note: this function is used only from sending direct data, no file and no directory
+        '''
+
+        put_directory_dsk = 'ClientPutDiskDir\n'
+
+        schema_succ =   {
+                        'uri': {'type' : 'string', 'required': True, 'empty': False},
+                        'verbosity' : {'type' : 'integer' , 'required': False} ,
+                        'max_retries' : {'type' : 'integer', 'required': False, 'allowed': range(-1, 999999)} ,
+                        'priority_class' : {'type' : 'integer', 'allowed': [0, 1, 2, 3, 4, 5, 6], 'required': False} ,
+                        'get_chk_only' : {'type' : 'boolean', 'required': False} ,
+                        'global_queue' : {'type' : 'boolean' , 'required': False} ,
+                        'codecs' : {'type' : 'string', 'required': False} ,
+                        'dont_compress' : {'type' : 'boolean', 'required': False} ,
+                        'client_token' : {'type' : 'string', 'required': False} ,
+                        'persistence' : {'type' : 'string','allowed': ['connection','forever','reboot'], 'required': False } ,
+                        'early_encode' : {'type' : 'boolean', 'required': False} ,
+                        #'binary_blob' : {'type' : 'boolean', 'required': False} ,
+                        'fork_on_cacheable' : {'type' : 'boolean', 'required': False} ,
+                        'extra_inserts_single_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'extra_inserts_splitfile_header_block' : {'type' : 'integer', 'required': False, 'allowed': range(0, 10)} ,
+                        'compatibility_mode' : {'type' : 'string', 'required': False} ,
+                        'local_request_only' : {'type' : 'boolean', 'required': False} ,
+                        'override_splitfile_crypto_key' : {'type' : 'string', 'required': False} ,
+                        'real_time_flag' : {'type' : 'boolean', 'required': False} ,
+
+                        'allow_unreadable_files' : {'type' : 'boolean', 'required': False} ,
+                        'include_hidden_files' : {'type' : 'boolean', 'required': False} ,
+                        'ignore_usk_date_hints' : {'type' : 'boolean', 'required': False} ,
+                        'write_to_client_cache' : {'type' : 'boolean', 'required': False} ,
+                        'override_splitfile_cryptokey' : {'type' : 'string', 'required': False, 'empty': False} ,
+
+                        'metadata_threshold' : {'type' : 'integer', 'required': False} ,
+                        'default_name' : {'type' : 'string', 'required': False} ,
+                        'site_name' : {'type' : 'string', 'required': True, 'empty': False} ,
+                        'directory' : {'type' : 'string', 'required': True, 'empty': False} ,
+                    }
+
+        v_succ = Validator(schema_succ)
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        directory = kw['directory']
+
+        if not PosixPath(directory).exists():
+                raise FileNotFoundError('directory not found: {0}'.format(directory))
+
+        if kw.get('default_name', None):
+            if not PosixPath('{0}/{1}'.format(directory, default_name)).exists():
+                raise FileNotFoundError('File not found: {0}'.format(default_name))
+
+            put_directory_dsk += 'DefaultName={0}\n'.format(default_name)
+
+        uri = kw.get('uri')
+        put_directory_dsk += 'URI={0}\n'.format(uri)
+
+        site_name = kw['site_name']
+
+        put_directory_dsk += 'Filename={0}\n'.format(directory)
+
+        identifier = get_a_uuid()
+        put_directory_dsk += 'Identifier={0}\n'.format(identifier)
+
+        verbosity = kw.get('verbosity', 0)
+        put_directory_dsk += 'Verbosity={0}\n'.format(verbosity)
+
+        max_retries = kw.get('max_retries', -1)
+        put_directory_dsk += 'MaxRetries={0}\n'.format(max_retries)
+
+        priority_class = kw.get('priority_class', 2)
+        put_directory_dsk += 'PriorityClass={0}\n'.format(priority_class)
+
+        get_chk_only = kw.get('get_chk_only', False)
+        put_directory_dsk += 'GetCHKOnly={0}\n'.format(get_chk_only)
+
+        global_queue = kw.get('global_queue', False)
+        put_directory_dsk += 'Global={0}\n'.format(global_queue)
+
+        dont_compress = kw.get('dont_compress', False)
+        put_directory_dsk += 'DontCompress={0}\n'.format(dont_compress)
+
+        if not dont_compress:
+            codecs = kw.get('codecs', None)
+            if not codecs:
+                codecs = 'list of codes'
+                put_directory_dsk += 'Codecs={0}\n'.format(codecs)
+
+        client_token = kw.get('client_token', None)
+        if client_token != None:
+            put_directory_dsk += 'ClientToken={0}\n'.format(client_token)
+
+        persistence = kw.get('persistence', 'connection')
+
+        if global_queue:
+            persistence = 'forever'
+
+        put_directory_dsk += 'Persistence={0}\n'.format(persistence)
+
+        target_filename = kw.get('target_filename', None)
+        if target_filename:
+            put_directory_dsk += 'TargetFilename={0}\n'.format(target_filename)
+
+        early_encode = kw.get('early_encode', False)
+        put_directory_dsk += 'EarlyEncode={0}\n'.format(early_encode)
+
+        #binary_blob = kw.get('binary_blob', False)
+        #put_directory_dsk += 'BinaryBlob={0}\n'.format(binary_blob)
+
+        fork_on_cacheable = kw.get('fork_on_cacheable', True)
+        put_directory_dsk += 'ForkOnCacheable={0}\n'.format(fork_on_cacheable)
+
+        extra_inserts_single_block = kw.get('extra_inserts_single_block', None)
+        if extra_inserts_single_block != None:
+            put_directory_dsk += 'ExtraInsertsSingleBlock ={0}\n'.format(extra_inserts_single_block)
+
+        extra_inserts_splitfile_header_block = kw.get('extra_inserts_splitfile_header_block', None)
+        if extra_inserts_splitfile_header_block != None:
+            put_directory_dsk += 'ExtraInsertsSplitfileHeaderBlock={0}\n'.format(extra_inserts_single_block)
+
+        compatibility_mode = kw.get('compatibility_mode', None)
+        if compatibility_mode != None:
+            put_directory_dsk += 'CompatibilityMode={0}\n'.format(compatibility_mode)
+
+        local_request_only = kw.get('local_request_only', False)
+        put_directory_dsk += 'LocalRequestOnly ={0}\n'.format(local_request_only)
+
+        override_splitfile_crypto_key = kw.get('override_splitfile_crypto_key', None)
+        if override_splitfile_crypto_key != None:
+            put_directory_dsk += 'OverrideSplitfileCryptoKey ={0}\n'.format(override_splitfile_crypto_key)
+
+        real_time_flag = kw.get('real_time_flag', False)
+        put_directory_dsk += 'RealTimeFlag={0}\n'.format(real_time_flag)
+
+        metadata_threshold = kw.get('metadata_threshold', -1)
+        put_directory_dsk += 'MetadataThreshold ={0}\n'.format(metadata_threshold)
+
+        allow_unreadable_files = kw.get('allow_unreadable_files', False)
+        if allow_unreadable_files:
+            put_directory_dsk += 'AllowUnreadableFiles={0}\n'.format(allow_unreadable_files)
+
+        include_hidden_files = kw.get('include_hidden_files', False)
+        if include_hidden_files:
+            put_directory_dsk += 'includeHiddenFiles ={0}\n'.format(include_hidden_files)
+
+        ignore_usk_date_hints = kw.get('ignore_usk_date_hints', False)
+        if ignore_usk_date_hints:
+            put_directory_dsk += 'IgnoreUSKDatehints ={0}\n'.format(ignore_usk_date_hints)
+
+        write_to_client_cache = kw.get('write_to_client_cache', False)
+        if override_splitfile_cryptokey:
+            put_directory_dsk += 'WriteToClientCache ={0}\n'.format(write_to_client_cache)
+
+        override_splitfile_cryptokey = kw.get('override_splitfile_cryptokey', None)
+        if override_splitfile_cryptokey:
+            paput_directory_dsk += 'OverrideSplitfileCryptoKey ={0}\n'.format(override_splitfile_cryptokey)
+
+        # We should do our job
+
+        put_directory_dsk += 'EndMessage\n'
+        return put_directory_dsk.encode('utf-8'), identifier
+
+
     @staticmethod
     def get_data(**kw):
         '''
@@ -1369,6 +1584,7 @@ class FromClientToNode(object):
 
         if not v_succ.validate(kw):
             return v_succ.errors
+        
 
         identifier = get_a_uuid()
 
@@ -1610,14 +1826,15 @@ class FromNodeToClient(object):
 
         return False
 
-    # __Begin__ ErrorLogin
-
     @staticmethod
-    def protocol_error(data):
+    def identifier_collision(data):
         '''
+        {'header': 'IdentifierCollision', 'Identifier': 'None', 'Global': 'true', 'footer': 'EndMessage'}
         '''
         schema_succ = {
-                   'header': {'type' : 'string', 'allowed': ['ProtocolError']},
+                   'header': {'type' : 'string', 'allowed': ['IdentifierCollision']},
+                   'Identifier' : {'type' : 'string', 'required' : False} ,
+                   'Global' : {'type' : 'string', 'required': False} ,
                    'footer' : {'type' : 'string'}
                 }
 
@@ -1627,7 +1844,62 @@ class FromNodeToClient(object):
             return True
 
         return False
-    # __End__ErrorLogin
+
+    # __Begin__ ProtocolError
+
+    @staticmethod
+    def protocol_error(data):
+        '''
+        {'header': 'ProtocolError', 'Identifier': 'IHwY2ROpRfaxxj5ocVC9LgIHwY2ROpRfaxxj5ocVC9LgIHwY2ROpRfaxxj5ocVC9Lg', 
+        'CodeDescription': 'Error parsing freenet URI', 'Fatal': 'false', 'Code': '4', 'ExtraDescription': 
+        'There is no @ in that URI! (pub)', 'Global': 'true', 'footer': 'EndMessage'}
+        '''
+        schema_succ = {
+                   'header': {'type' : 'string', 'allowed': ['ProtocolError']},
+                   'Identifier' : {'type' : 'string', 'required' : False} ,
+                   'Fatal' : {'type' : 'string', 'required' : False} ,
+                   'Code' : {'type' : 'string', 'required' :False} ,
+                   'Global' : {'type' : 'string', 'required': False} ,
+                   'footer' : {'type' : 'string'}
+                }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return True
+
+        return False
+    # __End__ ProtocolError
+
+    @staticmethod
+    def get_failed(data):
+        '''
+        {'header': 'GetFailed', 'Identifier': 'zaXGDmApTB6vRLOYN_3_WwzaXGDmApTB6vRLOYN_3_WwzaXGDmApTB6vRLOYN_3_Ww', 
+        'CodeDescription': 'Permanent redirect: use the new URI', 'ShortCodeDescription': 'New URI', 
+        'RedirectURI': 'USK@uonktR0ZSTIlBWiK5o4Uf0yzDKUNuDuHSDzvUZYCgU0,cMUguHw0DwkU04Uxx5grg5XSVw~Z4cRbF4aAY6MUbNQ,AQACAAE/redirect/3',
+         'Fatal': 'true', 'Code': '27', 'footer': 'EndMessage'}
+        '''
+        schema_succ = {
+                   'header': {'type' : 'string', 'allowed': ['GetFailed']},
+                   'Identifier' : {'type' : 'string', 'required' : True} ,
+                   'CodeDescription' : {'type' : 'string', 'required' : False} ,
+                   'ShortCodeDescription' : {'type' : 'string', 'required' : False} ,
+                   'RedirectURI' : {'type' : 'string', 'required': False} ,
+                   'Errors' : {'type' : 'string', 'required': False} ,
+                   'ExpectedDataLength' : {'type' : 'string', 'required': False} ,
+                   'ExpectedMetadata.ContentType' : {'type' : 'string', 'required': False} ,
+                   'FinalizedExpected' : {'type' : 'string', 'required': False} ,
+                   'Fatal' : {'type' : 'string', 'required': False} ,
+                   'Code' : {'type' : 'string', 'required': False} ,
+                   'footer' : {'type' : 'string'}
+                }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
 
     # __Begin__ WatchGlobal
 
@@ -1941,6 +2213,31 @@ class FromNodeToClient(object):
         return False
 
     @staticmethod
+    def started_compression(data):
+        '''
+        data received from Node after parsing:
+
+        {'header': 'StartedCompression', 
+        'Codec': '0', 'Identifier': 'something',
+        'footer': 'EndMessage'}
+        '''
+
+        schema_succ = {
+                        'header': {'type' : 'string', 'allowed': ['FinishedCompression']},
+                        'Codec' : {'type' : 'string'} ,
+                        'Identifier' : {'type' : 'string'} ,
+                        'footer' : {'type' : 'string'}
+                      }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
+
+
+    @staticmethod
     def finished_compression(data):
         '''
         data received from Node after parsing:
@@ -2138,7 +2435,9 @@ class FromNodeToClient(object):
 # Do not Touch this function if you can not make something better
 # Its nickname is Barnamy
 def barnamy_parsing_received_request(data):
+
     data = data.decode().split('\n')
+
     data_list = []
     data_dic = {}
     iam_data = False
@@ -2159,6 +2458,34 @@ def barnamy_parsing_received_request(data):
                 data_dic['header'] = item
         elif len(item.split('=')) == 2:
             data_dic[item.split('=')[0]] = item.split('=')[1]
+
+    return data_list
+
+# Maybe we will ned it after. Who knows :)
+def barnamy_parsing_received_request_in_bytes(data):
+
+    data = data.split(b'\n')
+
+    data_list = []
+    data_dic = {}
+    iam_data = False
+
+    for item in data:
+        if len(item.split(b'=')) == 1 and item:
+            if iam_data:
+                data_dic[b'Data'] = item
+                iam_data = False
+            elif item == b'EndMessage':
+                data_dic[b'footer'] = item
+                if data_dic not in data_list:
+                    data_list.append(data_dic)
+                data_dic = {}
+            elif item == b'Data':
+                iam_data = True 
+            else:
+                data_dic[b'header'] = item
+        elif len(item.split(b'=')) == 2:
+            data_dic[item.split(b'=')[0]] = item.split(b'=')[1]
 
     return data_list
 

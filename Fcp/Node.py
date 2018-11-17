@@ -1,4 +1,4 @@
-# encoding: utf-8
+# -*- coding: utf-8 -*-
 
 import queue
 import base64
@@ -14,7 +14,7 @@ import stat
 
 from .Schema import FromClientToNode
 from .Schema import FromNodeToClient
-from .Schema import barnamy_parsing_received_request
+from .Schema import barnamy_parsing_received_request, barnamy_parsing_received_request_in_bytes
 
 FCP_VERSION = '2.0'
 
@@ -123,10 +123,9 @@ class Node(object):
             message = FromClientToNode.watch_global()
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
-        def generate_keys(self, uri_type = 'SSK', name = None, callback = None):
+        def generate_keys(self, callback = None, uri_type = 'SSK', name = None):
             self.uri_type = uri_type
             self.name = name
-            self.callback = callback
 
             message, identifier = FromClientToNode.generate_keys()
 
@@ -172,7 +171,7 @@ class Node(object):
 
             time.sleep(1)
 
-        def put_data(self, **kw):
+        def put_data(self, callback = None, **kw):
 
             message, identifier = FromClientToNode.put_data(**kw)
 
@@ -180,7 +179,7 @@ class Node(object):
 
             # __Begin__ add a job
             job.identifier = identifier
-            job.callback = None
+            job.callback = callback
             job.message = message
             self.node.job_store[identifier] = job
             # __End__ add a job
@@ -193,7 +192,7 @@ class Node(object):
 
             return job
 
-        def put_file(self, **kw):
+        def put_file(self, callback = None, **kw):
             message, identifier = FromClientToNode.put_file(self.node._node_identifier, **kw)
             
             directory = str(PurePosixPath(kw['file_path']).parent)
@@ -209,7 +208,7 @@ class Node(object):
             self._tested_dda[dda] = True
             # __Begin__ add a job
             job.identifier = identifier
-            job.callback = None
+            job.callback = callback
             job.message = message
             self.node.job_store[identifier] = job
             # __End__ add a job
@@ -220,13 +219,13 @@ class Node(object):
 
             return job
 
-        def put_redirect(self, **kw):
+        def put_redirect(self, callback = None, **kw):
             message, identifier = FromClientToNode.put_redirect(**kw)
             job = self.node.JobTicket(self.node)
 
             # __Begin__ add a job
             job.identifier = identifier
-            job.callback = None
+            job.callback = callback
             job.message = message
             self.node.job_store[identifier] = job
             # __End__ add a job
@@ -237,8 +236,8 @@ class Node(object):
 
             return job
 
-        def put_directory_files(self, **kw):
-            message, identifier = FromClientToNode.put_directory_files(**kw)
+        def put_complex_directory_files(self, callback = None, **kw):
+            message, identifier = FromClientToNode.put_complex_directory_files(**kw)
             
             directory = kw['directory']
             dda = (directory, True, False)
@@ -253,7 +252,7 @@ class Node(object):
             self._tested_dda[dda] = True
             # __Begin__ add a job
             job.identifier = identifier
-            job.callback = None
+            job.callback = callback
             job.message = message
             self.node.job_store[identifier] = job
             # __End__ add a job
@@ -265,18 +264,18 @@ class Node(object):
             return job
 
          # Still under test
-        def put_directory_redirect(self, **kw):
-            message, identifier = FromClientToNode.put_directory_redirect(**kw)
+        def put_complex_directory_redirect(self, callback = None, **kw):
+            message, identifier = FromClientToNode.put_complex_directory_redirect(**kw)
 
             print(message)
 
-        def put_directory_data(self, **kw):
-            message, identifier = FromClientToNode.put_directory_data(**kw)
+        def put_complex_directory_data(self, **kw):
+            message, identifier = FromClientToNode.put_complex_directory_data(**kw)
 
             job = self.node.JobTicket(self.node)
             # __Begin__ add a job
             job.identifier = identifier
-            job.callback = None
+            job.callback = callback
             job.message = message
             self.node.job_store[identifier] = job
             # __End__ add a job
@@ -286,19 +285,38 @@ class Node(object):
             time.sleep(1)
 
             return job
-            
-        def get_data(self, **kw):
+
+
+        def put_directory_disk(self, callback = None, **kw):
+            message, identifier = FromClientToNode.put_directory_disk(**kw)
+
+            job = self.node.JobTicket(self.node)
+
+            # __Begin__ add a job
+            job.identifier = identifier
+            job.callback = callback
+            job.message = message
+            self.node.job_store[identifier] = job
+            # __End__ add a job
+
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+
+            time.sleep(1)
+
+            return job
+
+        def get_data(self, callback = None, **kw):
             message, identifier = FromClientToNode.get_data(**kw)
 
             # __Begin__ add a job
             job = self.node.JobTicket(self.node)
             job.identifier = identifier
-            job.callback = None
-            job.message = message
+            job.callback = callback
+
+            job.message = kw
+            
             self.node.job_store[identifier] = job
             # __End__ add a job
-
-            self.node.job_store[identifier] = job
 
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
@@ -306,7 +324,7 @@ class Node(object):
 
             return job
 
-        def get_file(self, **kw):
+        def get_file(self, callback = None, **kw):
             message, identifier = FromClientToNode.get_file(**kw)
             
             directory = str(PurePosixPath(kw['filename']).parent)
@@ -322,8 +340,8 @@ class Node(object):
             # __Begin__ add a job
             job = self.node.JobTicket(self.node)
             job.identifier = identifier
-            job.callback = None
-            job.message = message
+            job.callback = callback
+            job.message = kw
             job.is_file = True
             self.node.job_store[identifier] = job
             # __End__ add a job
@@ -458,10 +476,9 @@ class Node(object):
             
             try:
                 p_data = barnamy_parsing_received_request(data)
-            except:
-                p_data = ['erer', 'erere']
-                print(data)
-                
+            except UnicodeDecodeError:
+                # Maybe We arw going to parsing bytes instead or str 
+                logging.error('try to use get_file instead of get_data')
 
             for item in p_data:
 
@@ -482,12 +499,16 @@ class Node(object):
                     identifier, key = FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item)
                     job = self.node.job_store.get(identifier, False) ####
                     if job:
+
                         # __Begin__ update a job
                         job.response = key
                         job.ready = True
                         # __End__ update a job
 
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
+
                         logging.info('Generate keys')
 
                 elif FromNodeToClient.test_dda_reply(item):
@@ -528,12 +549,10 @@ class Node(object):
                             file_to_delete = Path(write_filename)
                             file_to_delete.unlink()
 
-                    print('')
                     logging.info(item)
 
 
                 elif FromNodeToClient.test_dda_complete(item):
-                    print('')
                     logging.info(item)
 
                 elif FromNodeToClient.persistent_put(item):
@@ -544,7 +563,9 @@ class Node(object):
                         job.response = item
                         # __End__ update a job
 
-                        # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
+
                         logging.info('Persistent put')
 
                 elif FromNodeToClient.expected_hashes(item):
@@ -552,11 +573,28 @@ class Node(object):
                     job = self.node.job_store.get(identifier, False)####
                     if job:
                         # __Begin__ update a job
-                        #job.response = item
+                        job.response = item
                         # __End__ update a job
 
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
+
                         logging.info('Expected hashes')
+
+                elif FromNodeToClient.started_compression(item):
+                    identifier = FromNodeToClient.started_compression(item)
+                    job = self.node.job_store.get(identifier, False)
+                    if job:
+                        # __Begin__ update a job
+                        job.response = item
+                        # __End__ update a job
+                         
+                        logging.info('Compression started')
+                        
+                        # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
 
                 elif FromNodeToClient.finished_compression(item):
                     identifier = FromNodeToClient.finished_compression(item)
@@ -567,7 +605,10 @@ class Node(object):
                         # __End__ update a job
                          
                         logging.info('Compression finished')
+                        
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
 
                 elif FromNodeToClient.uri_generated(item):
                     identifier = FromNodeToClient.uri_generated(item)
@@ -578,6 +619,9 @@ class Node(object):
                         # __End__ update a job
 
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
+
                         logging.info('Uri generated')
 
                 elif FromNodeToClient.simple_progress(item):
@@ -590,11 +634,15 @@ class Node(object):
                         progress = (succeeded / required ) * 100.0
 
                         job.response = item
-                        job.progress= progress
+                        job.progress = progress
+
                         # __End__ update a job
 
                         logging.info('Progress {0:.2f}%'.format(progress))
+                        
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
 
                 elif FromNodeToClient.put_fetchable(item):
                     identifier = FromNodeToClient.put_fetchable(item)
@@ -605,6 +653,9 @@ class Node(object):
                         # __End__ update a job
 
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
+
                         logging.info('Put fetchable')
 
                 elif FromNodeToClient.put_successful(item):
@@ -619,6 +670,9 @@ class Node(object):
                         # __End__ update a job
 
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
+
                         logging.info('Put successful')
 
                 elif FromNodeToClient.put_failed(item):
@@ -632,7 +686,10 @@ class Node(object):
                         # __End__ update a job
 
                         logging.info('Put failed: {0}'.format(item['CodeDescription']))
+
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
 
                 elif FromNodeToClient.persistent_get(item):
                     identifier = FromNodeToClient.persistent_get(item)
@@ -647,40 +704,90 @@ class Node(object):
                         # __End__ update a job
 
                         logging.info('Persistent get')
+                        
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
                      
                 elif FromNodeToClient.data_found(item):
                     identifier = FromNodeToClient.data_found(item)
                     job = self.node.job_store.get(identifier, False)####
                     if job:
                         # __Begin__ update a job
+
                         if job.is_file:
                             data_length = int(item['DataLength']) / 1000000
                             job.response = (job.filename, item['Metadata.ContentType'],'{0:.2f}MB'.format(data_length))
                             self.node.job_store[identifier].__del__()
                             job.remove_from_queue_when_finish()
                         else:
-                            job.response = item
+                            if not job.ready:
+                                job.response = item
+                                job.get_data()
                         # __End__ update a job
 
                         logging.info('Data found')
+
                         # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
+
                 elif FromNodeToClient.all_data(item):
                     identifier = FromNodeToClient.all_data(item)
                     job = self.node.job_store.get(identifier, False)####
-                    
+
                     if job:
                         # __Begin__ update a job
                         job.response = item['Metadata.ContentType'], item['Data'], item['DataLength']
                         self.node.job_store[identifier].__del__()
                         job.remove_from_queue_when_finish()
+                        job.ready = True
                         # __End__ update a job
 
                         logging.info('All data')
 
+                        # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
+
+                elif FromNodeToClient.get_failed(item):
+                    identifier = FromNodeToClient.get_failed(item)
+                    job = self.node.job_store.get(identifier, False)
+
+                    if job:
+                        if item.get('RedirectURI', None):
+                            logging.info('Redirect to {}'.format(item['RedirectURI']))
+
+                            ## delete the old job
+                            
+                                # I feel Angry I do not want to resolve it using Spagheti Code
+
+                            ## send new job with redirect uri
+
+                        else:
+                            logging.info('Error: {0}'.format(item))
+
+                        # callback if yes
+                        if job.callback:
+                            job.callback(item['header'], job.response)
+
                 elif FromNodeToClient.protocol_error(item):
+                    
+                    job.response = item
                     logging.info('Error: {0}'.format(item))
 
+                    # callback if yes
+                    if job.callback:
+                        job.callback(item['header'], job.response)
+
+                elif FromNodeToClient.identifier_collision(item):
+
+                    job.response = item
+                    logging.info('Error: {0}'.format(item))
+
+                    # callback if yes
+                    if job.callback:
+                        job.callback(item['header'], job.response)
                 else:
                     # we need to get the Schema of every request
                     print(item)
@@ -760,11 +867,9 @@ class Node(object):
             self.__ready = False
             self.__progress = 0
 
-            # After
+            # After: We can need to resend the request 
+            # and also to get the type of request
             self.__message = None
-
-            # After
-            self.__request = None
 
         @property
         def filename(self):
@@ -834,7 +939,7 @@ class Node(object):
             self.__node.job_store.pop(self.identifier, None)
 
         def cancel(self):
-            self.__node.node_request.remove(self.__identifier)
+            self.__node.node_request.remove_request(self.__identifier)
 
         def resend(self):
             print(self.__message)
