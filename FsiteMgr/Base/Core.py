@@ -20,6 +20,7 @@ DB_FILENAME = '{0}/freesitemgr.db'.format(CONFIG_DIR)
 logging.basicConfig(format='%(levelname)s %(asctime)s %(message)s', level=logging.DEBUG)
 
 DB_SCHEMA = '''
+
 create table site (
     id          integer primary key autoincrement not null,
     site_name   text unique,
@@ -33,6 +34,7 @@ create table site (
     default_index text,
     version     integer not null
 );
+
 '''
 
 CONFIG_FILE = '{0}/conf'.format(CONFIG_DIR)

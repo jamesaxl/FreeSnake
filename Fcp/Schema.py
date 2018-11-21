@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 try:
+    import cerberus
     from cerberus import Validator
 except ModuleNotFoundError:
     raise ModuleNotFoundError('cerberus module is required')
@@ -55,6 +56,183 @@ class FromClientToNode(object):
 
         return watch_global.encode('utf-8')
     # __End__ WatchGlobal
+
+
+    @staticmethod
+    def list_peer(**kw):
+        '''
+        ListPeer\n
+        NodeIdentifier=[UB] UberNode\n
+        WithVolatile=false\n
+        WithMetadata=true\n
+        EndMessage\n
+        '''
+
+        list_p = 'ListPeer\n'
+
+        schema_succ =   {
+                        'node_identifier': {'type' : 'string', 'required': True, 'empty': False},
+                        'with_volatile' : {'type' : 'boolean', 'required': True, 'empty': False},
+                        'with_metadata' : {'type' : 'boolean', 'required': True, 'empty': False},
+                    }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        node_identifier = kw['node_identifier']
+        list_p += 'NodeIdentifier={0}\n'.fromat(node_identifier)
+
+        with_volatile = kw['with_volatile']
+        list_p += 'WithVolatile{0}\n'.fromat(with_volatile)
+
+        with_metadata = kw['with_metadata']
+        list_p += 'WithMetadata{0}\n'.fromat(with_metadata)
+
+        list_p += 'EndMessage\n'
+
+        return list_p.encode('utf-8')
+
+
+    @staticmethod
+    def list_peers(**kw):
+        '''
+        ListPeers\n
+        WithVolatile=false\n
+        WithMetadata=true\n
+        EndMessage\n
+        '''
+
+        list_ps = 'ListPeer\n'
+
+        schema_succ =   {
+                        'with_volatile' : {'type' : 'boolean', 'required': True, 'empty': False},
+                        'with_metadata' : {'type' : 'boolean', 'required': True, 'empty': False},
+                    }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        with_volatile = kw['with_volatile']
+        list_ps += 'WithVolatile{0}\n'.fromat(with_volatile)
+
+        with_metadata = kw['with_metadata']
+        list_ps += 'WithMetadata{0}\n'.fromat(with_metadata)
+
+        list_ps += 'EndMessage\n'
+
+        return list_ps.encode('utf-8')
+
+    @staticmethod
+    def list_peer_note(**kw):
+        '''
+        ListPeerNotes\n
+        NodeIdentifier=[UB] UberNode\n
+        EndMessage\n
+        '''
+
+        list_p_note = 'ListPeerNotes\n'
+
+        schema_succ =   {
+                        'node_identifier' : {'type' : 'string', 'required': True, 'empty': False},
+                    }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        node_identifier = kw['node_identifier']
+        list_ps += 'NodeIdentifier{0}\n'.fromat(node_identifier)
+
+        list_p_note += 'EndMessage\n'
+
+        return list_p_note.encode('utf-8')
+
+    @staticmethod
+    def add_peer_from_file(**kw):
+        '''
+        AddPeer\n
+        Trust=HIGH\n
+        Visibility=YES\n
+        File=newref.txt\n
+        EndMessage\n
+        '''
+
+        pass
+
+    @staticmethod
+    def add_peer_from_uri(**kw):
+        '''
+        AddPeer\n
+        Trust=NORMAL\n
+        Visibility=NAME_ONLY\n
+        URL=http://foobar.net/myref.txt\n
+        EndMessage\n
+        '''
+
+        pass
+
+    @staticmethod
+    def add_peer_from_data(**kw):
+        '''
+        AddPeer\n
+        Trust=LOW\n
+        Visibility=NO\n
+        physical.udp=12.34.56.78:12345\n
+        lastGoodVersion=Fred,0.7,1.0,874\n
+        ark.pubURI=SSK@fjRw9dk...AQABAAE/ark\n
+        ark.number=123\n
+        identity=GT5~dseFDw...\n
+        myName=foobar\n
+        base64=true\n
+        location=0.01234567890\n
+        testnet=false\n
+        version=Fred,0.7,1.0,918\n
+        EndMessage\n
+        '''
+
+        pass
+
+    @staticmethod
+    def modify_peer(**kw):
+        '''
+        ModifyPeer\n
+        NodeIdentifier=[UB] UberNode\n
+        AllowLocalAddresses=true/false\n
+        IsDisabled=true\n
+        IsListenOnly=false\n
+        IsBurstOnly=false\n
+        IgnoreSourcePort=false\n
+        EndMessage\n
+        '''
+
+        pass
+
+    @staticmethod
+    def remove_peer(**kw):
+        '''
+        RemovePeer
+        NodeIdentifier=[UB] UberNode
+        EndMessage
+        '''
+
+        pass
+
+    @staticmethod
+    def get_node(**kw):
+        '''
+        GetNode
+        WithPrivate=true
+        WithVolatile=false
+        EndMessage
+        '''
+
+        pass
+
 
     # __Begin__ GenerateSSK
     @staticmethod
@@ -1622,6 +1800,119 @@ class FromClientToNode(object):
         return get_data.encode('utf-8'), identifier 
 
     @staticmethod
+    def get_stream(stream, **kw):
+        '''
+        ClientGet\n
+        IgnoreDS=false\n
+        DSOnly=false\n
+        URI=USK@something\n
+        Identifier=Request Number One\n
+        Verbosity=0\n
+        ReturnType=direct\n
+        MaxSize=100\n
+        MaxTempSize=1000\n
+        MaxRetries=100\n
+        PriorityClass=1\n
+        Persistence=forever\n
+        ClientToken=hello\n
+        Global=false\n
+        BinaryBlob=false\n
+        FilterData=true\n
+        EndMessage\n
+     
+        ###
+        keywords:
+        - uri
+        - ds_only
+        - verbosity
+        - ignore_ds
+        - priority_class
+        - max_size
+        - global_queue
+        - max_temp_size
+        - max_retries
+        - client_token
+        - persistence
+        - binary_blob
+        - filter_data
+        - initial_metadata_data_length
+        - stream : must be a file object
+        '''
+
+        if not stream:
+            raise Exception('stream must not be None')
+
+        if not hasattr(stream, 'write'):
+            raise Exception('stream must be a file object with attribute write e.g: stream = open(\'filename.extension\', \'ab\')')
+
+        if not stream.mode == 'ab':
+            raise Exception('stream must be "stream = open(\'filename.extension\', \'ab\')"')
+
+        if stream.tell():
+             raise Exception('File is not empty')
+
+        get_data = 'ClientGet\n'
+
+        schema_succ =   {
+
+                        'uri': {'type' : 'string', 'required': True, 'empty': False},
+                        'ds_only' : {'type' : 'boolean', 'required': False} ,
+                        'verbosity' : {'type' : 'integer' , 'required': False} ,
+                        'ignore_ds' : {'type' : 'boolean', 'required': False} ,
+                        'priority_class' : {'type' : 'integer', 'allowed': [0, 1, 2, 3, 4, 5, 6], 'required': False} ,
+                        'max_size' : {'type' : 'integer', 'required': False} ,
+                        'global_queue' : {'type' : 'boolean' , 'required': False} ,
+                        'max_temp_size' : {'type' : 'integer', 'required': False} ,
+                        'max_retries' : {'type' : 'integer', 'required': False} ,
+                        'client_token' : {'type' : 'string', 'required': False} ,
+                        'persistence' : {'type' : 'string','allowed': ['connection','forever','reboot'], 'required': False } ,
+                        'binary_blob' : {'type' : 'boolean', 'required': False} ,
+                        'filter_data' : {'type' : 'boolean', 'required': False} ,
+                        'initial_metadata_data_length' : {'type' : 'boolean', 'required': False} ,
+                    }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+        
+
+        identifier = get_a_uuid()
+
+        ignore_ds = kw.get('ignore_ds', False)
+        get_data += 'IgnoreDS={}\n'.format(ignore_ds)
+
+        ds_only = kw.get('ds_only', False)
+        get_data += 'DSOnly={}\n'.format(ds_only)
+
+        uri = kw['uri']
+        get_data += 'URI={}\n'.format(uri)
+
+        global_queue = kw.get('global_queue', False)
+        get_data += 'Global={}\n'.format(global_queue)
+
+        get_data += 'Identifier={}\n'.format(identifier)
+
+        persistent = kw.get('persistent', 'connection')
+
+        if global_queue:
+            persistent = 'forever'
+
+        get_data += 'Persistence={}\n'.format(persistent)
+
+        priority_class = kw.get('priority_class', 2)
+        get_data += 'PriorityClass={}\n'.format(priority_class)
+
+        get_data += 'ReturnType=direct\n'
+
+        filter_data = kw.get('filter_data', False)
+        get_data += 'FilterData=false\n'
+
+        get_data += 'EndMessage\n'
+
+        return get_data.encode('utf-8'), identifier 
+
+    @staticmethod
     def get_file(**kw):
 
         '''
@@ -1799,32 +2090,49 @@ class FromNodeToClient(object):
         'Node': 'Fred', 'ExtBuild': '29', 'FCPVersion': '2.0', 'NodeLanguage': 'C++', 
         'ExtRevision': 'v29', 'footer': 'EndMessage'}
         '''
-
-        parsing_data_generator = data
         
         schema_succ = {
-                       'header': {'type' : 'string', 'allowed': ['NodeHello']},
+                       'header': {'type' : 'string', 'required' : True, 'empty': False ,'allowed': ['NodeHello']},
                        'CompressionCodecs' : {'type' : 'string'} ,
                        'Revision' : {'type' : 'string'} ,
                        'Testnet' : {'type' : 'string'} ,
                        'Version' : {'type' : 'string'} ,
                        'Build' : {'type' : 'string'} ,
-                       'ConnectionIdentifier' : {'type' : 'string'} ,
+                       'ConnectionIdentifier' : {'type' : 'string', 'required' : True, 'empty': False} ,
                        'Node' : {'type' : 'string'} ,
                        'ExtBuild' : {'type' : 'string'} ,
                        'FCPVersion' : {'type' : 'string'} ,
                        'NodeLanguage' : {'type' : 'string'} ,
                        'ExtRevision' : {'type' : 'string'} ,
-                       'footer' : {'type' : 'string'}
+                       'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
-
 
         v_succ = Validator(schema_succ)
 
-        if v_succ.validate(parsing_data_generator):
+        if v_succ.validate(data):
             return 'Connection started'
 
         return False
+
+    @staticmethod
+    def close_connection_duplicate_client_name(data):
+        '''
+        {'header' : 'CloseConnectionDuplicateClientName',
+        'footer' : 'EndMessage'}
+        '''
+        
+        schema_succ = {
+                   'header': {'type' : 'string', 'required' : True, 'allowed': ['CloseConnectionDuplicateClientName']},
+                   'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return True
+
+        return False
+
 
     @staticmethod
     def identifier_collision(data):
@@ -1835,7 +2143,7 @@ class FromNodeToClient(object):
                    'header': {'type' : 'string', 'allowed': ['IdentifierCollision']},
                    'Identifier' : {'type' : 'string', 'required' : False} ,
                    'Global' : {'type' : 'string', 'required': False} ,
-                   'footer' : {'type' : 'string'}
+                   'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                 }
 
         v_succ = Validator(schema_succ)
@@ -1860,7 +2168,7 @@ class FromNodeToClient(object):
                    'Fatal' : {'type' : 'string', 'required' : False} ,
                    'Code' : {'type' : 'string', 'required' :False} ,
                    'Global' : {'type' : 'string', 'required': False} ,
-                   'footer' : {'type' : 'string'}
+                   'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                 }
 
         v_succ = Validator(schema_succ)
@@ -1891,7 +2199,7 @@ class FromNodeToClient(object):
                    'FinalizedExpected' : {'type' : 'string', 'required': False} ,
                    'Fatal' : {'type' : 'string', 'required': False} ,
                    'Code' : {'type' : 'string', 'required': False} ,
-                   'footer' : {'type' : 'string'}
+                   'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                 }
 
         v_succ = Validator(schema_succ)
@@ -1912,8 +2220,6 @@ class FromNodeToClient(object):
         'RequestURI' : ,'Identifier' : 'SSK@Bsomething', 'footer' : 'EndMessage' }
         '''
 
-        parsing_data_generator = data
-
         schema_uri_type = { 'uri_type': { 'type' : 'string', 'allowed': ['USK', 'SSK', 'KSK']}, 
                             'name' : { 'type' : 'string', 'nullable': True } }
 
@@ -1927,23 +2233,23 @@ class FromNodeToClient(object):
                         'InsertURI' : {'type' : 'string'} ,
                         'RequestURI' : {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
 
-        if v_succ.validate(parsing_data_generator):
-            private_key = parsing_data_generator['InsertURI']
-            public_key = parsing_data_generator['RequestURI']
-            identifier = parsing_data_generator['Identifier']
+        if v_succ.validate(data):
+            private_key = data['InsertURI']
+            public_key = data['RequestURI']
+            identifier = data['Identifier']
 
             if uri_type == 'SSK':
                 if name:
-                    public_key = '{0}{1}-0'.format(parsing_data_generator['RequestURI'], name)
-                    private_key = '{0}{1}-0'.format(parsing_data_generator['InsertURI'], name)
+                    public_key = '{0}{1}-0'.format(data['RequestURI'], name)
+                    private_key = '{0}{1}-0'.format(data['InsertURI'], name)
                 else :
-                    public_key = '{0}0'.format(parsing_data_generator['RequestURI'])
-                    private_key = '{0}0'.format(parsing_data_generator['InsertURI'])
+                    public_key = '{0}0'.format(data['RequestURI'])
+                    private_key = '{0}0'.format(data['InsertURI'])
 
             elif uri_type == 'USK':
                 if name:
@@ -1982,12 +2288,12 @@ class FromNodeToClient(object):
         '''
         
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['TestDDAReply']},
+                        'header': {'type' : 'string',  'required' : True, 'empty': False, 'allowed': ['TestDDAReply']},
                         'Directory' : {'type' : 'string'} ,
                         'ReadFilename' : {'type' : 'string'} ,
                         'WriteFilename' : {'type' : 'string'} ,
                         'ContentToWrite' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2008,12 +2314,12 @@ class FromNodeToClient(object):
         '''
         
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['TestDDAComplete']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['TestDDAComplete']},
                         'Directory' : {'type' : 'string'} ,
                         'ReadFilename' : {'type' : 'string'} ,
                         'WriteFilename' : {'type' : 'string'} ,
                         'ContentToWrite' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2044,7 +2350,7 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['PersistentGet']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PersistentGet']},
                         'MaxRetries' : {'type' : 'string'} ,
                         'Started' : {'type' : 'string'} ,
                         'PriorityClass' : {'type' : 'string'} ,
@@ -2058,7 +2364,7 @@ class FromNodeToClient(object):
                         'ReturnType': {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2080,52 +2386,14 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['DataFound']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['DataFound']},
                         'CompletionTime' : {'type' : 'string'} ,
                         'StartupTime' : {'type' : 'string'} ,
                         'DataLength' : {'type' : 'string'} ,
                         'Metadata.ContentType' : {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
-                      }
-
-        v_succ = Validator(schema_succ)
-
-        if v_succ.validate(data):
-            return data['Identifier']
-
-        return False
-
-    @staticmethod
-    def all_data(data):
-        '''
-        data received from Node after parsing:
-
-        {'header': 'AllData', 'Identifier': 'something', 'CompletionTime': 'something', 
-        'StartupTime': 'something', 'DataLength': '29', 'Global': 'true', 'Metadata.ContentType': 
-        'application/octet-stream', 'Data': 'testing parsing for 26th timeCompatibilityMode', 'Min': 
-        'COMPAT_1416', 'Max': 'COMPAT_1468', 'Definitive': 'true', 
-        'SplitfileCryptoKey': 'something', 
-        'DontCompress': 'true', 'Min.Number': '6', 'Max.Number': '7', 'footer': 'EndMessage'}
-        '''
-        schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['AllData']},
-                        'CompletionTime' : {'type' : 'string'} ,
-                        'StartupTime' : {'type' : 'string'} ,
-                        'DataLength' : {'type' : 'string'} ,
-                        'Metadata.ContentType' : {'type' : 'string'} ,
-                        'Identifier' : {'type' : 'string'} ,
-                        'Global' : {'type' : 'string'} ,
-                        'Data' : {'type' : 'string'} ,
-                        'Min' : {'type' : 'string'} ,
-                        'Max' : {'type' : 'string'} ,
-                        'Definitive' : {'type' : 'string'} ,
-                        'SplitfileCryptoKey' : {'type' : 'string'} ,
-                        'DontCompress' : {'type' : 'string'} ,
-                        'Min.Number' : {'type' : 'string'} ,
-                        'Max.Number' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2160,7 +2428,7 @@ class FromNodeToClient(object):
          'footer': 'EndMessage'}
         '''
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['PersistentPut']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PersistentPut']},
                         'MaxRetries' : {'type' : 'string'} ,
                         'Started' : {'type' : 'string'} ,
                         'PriorityClass' : {'type' : 'string'} ,
@@ -2177,32 +2445,7 @@ class FromNodeToClient(object):
                         'Metadata.ContentType' : {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
-                      }
-
-        v_succ = Validator(schema_succ)
-
-        if v_succ.validate(data):
-            return data['Identifier']
-
-        return False
-
-    @staticmethod
-    def expected_hashes(data):
-        '''
-        data received from Node after parsing:
-
-        {'header': 'ExpectedHashes', 'Identifier': 'something', 
-        'Global': 'true', 'Hashes.SHA256': 'something', 
-        'footer': 'EndMessage'}
-        '''
-
-        schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['ExpectedHashes']},
-                        'Hashes.SHA256' : {'type' : 'string'} ,
-                        'Identifier' : {'type' : 'string'} ,
-                        'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2223,10 +2466,10 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['FinishedCompression']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['FinishedCompression']},
                         'Codec' : {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2249,14 +2492,14 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['FinishedCompression']},
+                        'header': {'type' : 'string',  'required' : True, 'empty': False, 'allowed': ['FinishedCompression']},
                         'Codec' : {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
                         'CompressedSize' : {'type' : 'string'} ,
                         'OriginalSize' : {'type' : 'string'} ,
                         'Codec.Name' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2280,7 +2523,7 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['SimpleProgress']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['SimpleProgress']},
                         'Total' : {'type' : 'string'} ,
                         'Required' : {'type' : 'string'} ,
                         'Failed' : {'type' : 'string'} ,
@@ -2291,7 +2534,7 @@ class FromNodeToClient(object):
                         'FinalizedTotal' : {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2300,6 +2543,162 @@ class FromNodeToClient(object):
             return data['Identifier']
 
         return False
+
+    @staticmethod
+    def sending_to_network(data):
+        '''
+        {'header': 'SendingToNetwork', 
+        'Identifier': 'YN_fi4KIQvyVA_Kg2XDNrgYN_fi4KIQvyVA_Kg2XDNrgYN_fi4KIQvyVA_Kg2XDNrg', 
+        'Global': 'true', 'footer': 'EndMessage'}
+        '''
+        
+        schema_succ = {
+                        'header': {'type' : 'string', 'required' : True, 'empty' : False, 'allowed': ['SendingToNetwork']},
+                        'Identifier' : {'type' : 'string'} ,
+                        'Global' : {'type' : 'string'} ,
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                      }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
+
+    @staticmethod
+    def expected_hashes(data):
+        '''
+        {'header': 'ExpectedHashes', 'Identifier': 'YN_fi4KIQvyVA_Kg2XDNrgYN_fi4KIQvyVA_Kg2XDNrgYN_fi4KIQvyVA_Kg2XDNrg',
+         'Global': 'true', 'Hashes.SHA256': 'ce0b2ed50716daa00d07ed4599c3f39e556b453ef07c9692cfeb19d63b9a9538', 
+         'Hashes.SHA1': 'b3a341235e68c020c3fc2d3f76fde5be7c2ce96f', 'Hashes.MD5': 'c744d4a17230f1354330f0e0ea59817a', 
+         'footer': 'EndMessage'}
+
+        OR
+        
+        {'header': 'ExpectedHashes', 'Identifier': 'something', 
+        'Global': 'true', 'Hashes.SHA256': 'something', 
+        'footer': 'EndMessage'}
+
+        '''
+        
+        schema_succ = {
+                        'header': {'type' : 'string', 'required' : True, 'empty' : False, 'allowed': ['ExpectedHashes']},
+                        'Identifier' : {'type' : 'string'} ,
+                        'Hashes.SHA256' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'Hashes.SHA1' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'Hashes.MD5' : {'type' : 'string', 'required' : False, 'empty' : False,} ,
+                        'Global' : {'type' : 'string'} ,
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                      }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
+
+    @staticmethod
+    def compatibility_mode(data):
+        '''
+        {'header': 'CompatibilityMode', 'Min': 'COMPAT_1416', 
+        'Identifier': 'DmLQYj52RBCBohafwM0xCgDmLQYj52RBCBohafwM0xCgDmLQYj52RBCBohafwM0xCg', 
+        'Max': 'COMPAT_1468', 'Definitive': 'true', 
+        'SplitfileCryptoKey': '21a4e353ae0cc09b7b179df91b47f78e1ce47018bfeeacb51d254a7bf475dbb2', 
+        'Global': 'true', 'DontCompress': 'true', 'Min.Number': '6', 'Max.Number': '7', 'footer': 'EndMessage'}
+
+        '''
+        
+        schema_succ = {
+                        'header': {'type' : 'string', 'required' : True, 'empty' : False, 'allowed': ['CompatibilityMode']},
+                        'Identifier' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'Max' : {'type' : 'string' , 'required' : False, 'empty' : False} ,
+                        'Min' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'Definitive' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'DontCompress' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'SplitfileCryptoKey' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'Min.Number' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'Max.Number' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'Global' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                      }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
+
+    @staticmethod
+    def expected_mime(data):
+        '''
+         { 'header': 'ExpectedMIME', 'Identifier': 'YfoPgI_vRT6zqlaSeHbUdAYfoPgI_vRT6zqlaSeHbUdAYfoPgI_vRT6zqlaSeHbUdA', 
+         'Global': 'true', 'Metadata.ContentType': 'audio/ogg', 'footer': 'EndMessage' }
+        '''
+        
+        schema_succ = {
+                        'header': {'type' : 'string', 'required' : True, 'empty' : False, 'allowed': ['ExpectedMIME']},
+                        'Identifier' : {'type' : 'string'} ,
+                        'Metadata.ContentType' : {'type' : 'string'} ,
+                        'Global' : {'type' : 'string'} ,
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                      }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
+
+    @staticmethod
+    def expected_data_length(data):
+        '''
+        {'header': 'ExpectedDataLength', 'Identifier': 'YN_fi4KIQvyVA_Kg2XDNrgYN_fi4KIQvyVA_Kg2XDNrgYN_fi4KIQvyVA_Kg2XDNrg', 
+        'DataLength': '0', 'Global': 'true', 'footer': 'EndMessage'}
+
+        '''
+        
+        schema_succ = {
+                        'header': {'type' : 'string', 'required' : True, 'empty' : False, 'allowed': ['ExpectedDataLength']},
+                        'Identifier' : {'type' : 'string'} ,
+                        'DataLength' : {'type' : 'string'} ,
+                        'Global' : {'type' : 'string', } ,
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                      }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
+
+    @staticmethod
+    def persistent_request_removed(data):
+        '''
+        {'header': 'PersistentRequestRemoved', 'Identifier': 'PfdChTyLRHC7JzzKZCuDeQPfdChTyLRHC7JzzKZCuDeQPfdChTyLRHC7JzzKZCuDeQ', 
+        'Global': 'true', 'footer': 'EndMessage'}
+        '''
+        
+        schema_succ = {
+                        'header': {'type' : 'string', 'required' : True, 'empty' : False, 'allowed': ['PersistentRequestRemoved']},
+                        'Identifier' : {'type' : 'string'} ,
+                        'Global' : {'type' : 'string', 'required' : True, 'empty' : False} ,
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                      }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+ 
+        raise Exception(v_succ.errors)
+
+        return False
+
 
     @staticmethod
     def uri_generated(data):
@@ -2316,7 +2715,7 @@ class FromNodeToClient(object):
                         'Identifier' : {'type' : 'string'} ,
                         'URI' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2337,11 +2736,11 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['PutFetchable']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PutFetchable']},
                         'URI' : {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'}
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2363,13 +2762,13 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['PutSuccessful']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PutSuccessful']},
                         'URI' : {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
                         'CompletionTime' : {'type' : 'string'} ,
                         'StartupTime' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'},
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2391,14 +2790,14 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['PutFailed']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PutFailed']},
                         'Identifier' : {'type' : 'string'} ,
                         'CodeDescription' : {'type' : 'string'} ,
                         'ShortCodeDescription' : {'type' : 'string'} ,
                         'Fatal' : {'type' : 'string'} ,
                         'Code' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'},
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2419,10 +2818,10 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'allowed': ['PersistentRequestRemoved']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PersistentRequestRemoved']},
                         'Identifier' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
-                        'footer' : {'type' : 'string'},
+                        'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
@@ -2434,58 +2833,23 @@ class FromNodeToClient(object):
 
 # Do not Touch this function if you can not make something better
 # Its nickname is Barnamy
-def barnamy_parsing_received_request(data):
+def barnamy_parsing_received_request_in_bytes(data):
 
-    data = data.decode().split('\n')
-
+    data = data.decode('utf-8').split('\n')
     data_list = []
     data_dic = {}
-    iam_data = False
 
     for item in data:
-        if len(item.split('=')) == 1 and item:
-            if iam_data:
-                data_dic['Data'] = item
-                iam_data = False
-            elif item == 'EndMessage':
+        if len(item.split('=')) == 1:
+            if item == 'EndMessage':
                 data_dic['footer'] = item
                 if data_dic not in data_list:
                     data_list.append(data_dic)
                 data_dic = {}
-            elif item == 'Data':
-                iam_data = True 
-            else:
+            else :
                 data_dic['header'] = item
         elif len(item.split('=')) == 2:
             data_dic[item.split('=')[0]] = item.split('=')[1]
-
-    return data_list
-
-# Maybe we will ned it after. Who knows :)
-def barnamy_parsing_received_request_in_bytes(data):
-
-    data = data.split(b'\n')
-
-    data_list = []
-    data_dic = {}
-    iam_data = False
-
-    for item in data:
-        if len(item.split(b'=')) == 1 and item:
-            if iam_data:
-                data_dic[b'Data'] = item
-                iam_data = False
-            elif item == b'EndMessage':
-                data_dic[b'footer'] = item
-                if data_dic not in data_list:
-                    data_list.append(data_dic)
-                data_dic = {}
-            elif item == b'Data':
-                iam_data = True 
-            else:
-                data_dic[b'header'] = item
-        elif len(item.split(b'=')) == 2:
-            data_dic[item.split(b'=')[0]] = item.split(b'=')[1]
 
     return data_list
 

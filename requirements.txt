@@ -1,0 +1,16 @@
+applescript==0.0.1
+Cerberus==1.2
+decorator==4.3.0
+detect==0.0.2
+future==0.17.1
+only==1.0.3
+pgrep==0.0.0
+protobuf==3.6.1
+psutil==5.4.8
+public==2.0.1
+python-magic==0.4.15
+runcmd==0.0.3
+six==1.11.0
+sqlite3==0.0.0
+temp==1.0.2
+websockets==7.0
