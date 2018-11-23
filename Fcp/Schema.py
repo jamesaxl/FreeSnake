@@ -320,7 +320,7 @@ class FromClientToNode(object):
         return test_dda_res.encode('utf-8')
 
     @staticmethod
-    def put_data(**kw):
+    def put_data(compression_codecs, **kw):
         '''
         ClientPut\n
         URI=something\n
@@ -365,6 +365,7 @@ class FromClientToNode(object):
         - override_splitfile_crypto_key
         - real_time_flag
         - metadata_threshold
+        - ignore_usk_datehints
         - data
 
         for more info https://github.com/freenet/wiki/wiki/FCPv2-ClientPut
@@ -396,7 +397,8 @@ class FromClientToNode(object):
                         'override_splitfile_crypto_key' : {'type' : 'string', 'required': False} ,
                         'real_time_flag' : {'type' : 'boolean', 'required': False} ,
                         'metadata_threshold' : {'type' : 'integer', 'required': False} ,
-                        'data' : {'type' : 'string', 'required': True, 'empty': False}
+                        'ignore_usk_datehints' : {'type' : 'boolean', 'required': False} ,
+                        #'data' : {'type' : 'string', 'required': True, 'empty': False}
                     }
 
         v_succ = Validator(schema_succ)
@@ -406,6 +408,9 @@ class FromClientToNode(object):
 
         uri = kw.get('uri')
         put_d += 'URI={0}\n'.format(uri)
+
+        ignore_usk_datehints = kw.get('ignore_usk_date_hints', False)
+        put_d += 'IgnoreUSKDatehints={0}\n'.format(ignore_usk_datehints)
         
         metadata_content_type = kw.get('metadata_content_type', 'application/octet-stream')
         put_d += 'Metadata.ContentType={0}\n'.format(metadata_content_type)
@@ -434,8 +439,9 @@ class FromClientToNode(object):
         if not dont_compress:
             codecs = kw.get('codecs', None)
             if not codecs:
-                codecs = 'list of codes'
-                put_d += 'Codecs={0}\n'.format(codecs) 
+                codecs = compression_codecs
+
+            put_d += 'Codecs={0}\n'.format(codecs)
         
         client_token = kw.get('client_token', None)
         if client_token != None:
@@ -492,10 +498,15 @@ class FromClientToNode(object):
         if global_queue:
             persistence = 'forever'
 
-        data = kw.get('data')
+        data = kw.get('data', None)
+
+        if not data:
+            raise Exception('data field is required')
+
         data_length = len(data.encode('utf-8'))
         put_d += 'DataLength={0}\n'.format(data_length)
         put_d += 'Data\n{0}\n'.format(data)
+
 
         return put_d.encode('utf-8'), identifier
 
@@ -648,8 +659,8 @@ class FromClientToNode(object):
         if not dont_compress:
             codecs = kw.get('codecs', None)
             if not codecs:
-                codecs = 'list of codes'
-                put_f += 'Codecs={0}\n'.format(codecs)
+                codecs = compression_codecs
+            put_f += 'Codecs={0}\n'.format(codecs)
         
         client_token = kw.get('client_token', None)
         if client_token != None:
@@ -889,7 +900,7 @@ class FromClientToNode(object):
         return put_f.encode('utf-8'), identifier
 
     @staticmethod
-    def put_complex_directory_files(**kw):
+    def put_complex_directory_files(compression_codecs,  **kw):
         ''' 
         ClientPutComplexDir\n
         URI=something@\n
@@ -967,7 +978,7 @@ class FromClientToNode(object):
                         'metadata_threshold' : {'type' : 'integer', 'required': False} ,
                         'default_name' : {'type' : 'string', 'required': False} ,
                         'directory' : {'type' : 'string', 'required': True, 'empty': False} ,
-                        'site_name' : {'type' : 'string', 'required': True, 'empty': False} ,
+                        'site_name' : {'type' : 'string', 'required': False, 'empty': False} ,
                     }
 
         v_succ = Validator(schema_succ)
@@ -980,7 +991,7 @@ class FromClientToNode(object):
         if not PosixPath('{0}/{1}'.format(directory, default_name)).exists():
             raise FileNotFoundError('File not found: {0}'.format(default_name))
 
-        site_name = kw['site_name']
+        site_name = kw.get('kw', False)
 
         uri = kw.get('uri')
 
@@ -1010,7 +1021,7 @@ class FromClientToNode(object):
         if not dont_compress:
             codecs = kw.get('codecs', None)
             if not codecs:
-                codecs = 'list of codes'
+                codecs = compression_codecs
                 put_directory_f += 'Codecs={0}\n'.format(codecs)
 
         client_token = kw.get('client_token', None)
@@ -2245,11 +2256,11 @@ class FromNodeToClient(object):
 
             if uri_type == 'SSK':
                 if name:
-                    public_key = '{0}{1}-0'.format(data['RequestURI'], name)
-                    private_key = '{0}{1}-0'.format(data['InsertURI'], name)
+                    public_key = '{0}{1}'.format(data['RequestURI'], name)
+                    private_key = '{0}{1}'.format(data['InsertURI'], name)
                 else :
-                    public_key = '{0}0'.format(data['RequestURI'])
-                    private_key = '{0}0'.format(data['InsertURI'])
+                    public_key = '{0}'.format(data['RequestURI'])
+                    private_key = '{0}'.format(data['InsertURI'])
 
             elif uri_type == 'USK':
                 if name:
@@ -2306,18 +2317,15 @@ class FromNodeToClient(object):
     @staticmethod
     def test_dda_complete(data):
         '''
-        { 'header' : 'TestDDAComplete'
-        'Directory' : '/tmp/'
-        'ReadDirectoryAllowed' : 'true'
-        'WriteDirectoryAllowed' : 'true'
-        'footer' : 'EndMessage' }
+         {'header': 'TestDDAComplete', 'ReadDirectoryAllowed': 'true', 
+         'Directory': '/usr/home/jamesaxl/Music/site_test', 'footer': 'EndMessage'}
         '''
-        
+
         schema_succ = {
-                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['TestDDAComplete']},
-                        'Directory' : {'type' : 'string'} ,
-                        'ReadFilename' : {'type' : 'string'} ,
-                        'WriteFilename' : {'type' : 'string'} ,
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['TestDDAComplete']} ,
+                        'Directory' : {'type' : 'string' , 'required' : True, 'empty': False} ,
+                        'ReadDirectoryAllowed' : {'type' : 'string' ,'required' : False, 'empty': False} ,
+                        'WriteDirectoryAllowed' : {'type' : 'string' ,'required' : False, 'empty': False} ,
                         'ContentToWrite' : {'type' : 'string'} ,
                         'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
@@ -2458,17 +2466,18 @@ class FromNodeToClient(object):
     @staticmethod
     def started_compression(data):
         '''
-        data received from Node after parsing:
 
-        {'header': 'StartedCompression', 
-        'Codec': '0', 'Identifier': 'something',
-        'footer': 'EndMessage'}
+        { 'header': 'StartedCompression', 'Codec': 'GZIP', 
+          'Identifier': '-yfOweULTUqRSXBah8zNSA-yfOweULTUqRSXBah8zNSA-yfOweULTUqRSXBah8zNSA', 
+          'Global': 'true', 'footer': 'EndMessage' }
+
         '''
 
         schema_succ = {
-                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['FinishedCompression']},
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['StartedCompression']},
                         'Codec' : {'type' : 'string'} ,
                         'Identifier' : {'type' : 'string'} ,
+                        'Global' : {'type' : 'string'} ,
                         'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 

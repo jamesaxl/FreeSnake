@@ -40,6 +40,7 @@ class Node(object):
         self.log_type = 'CONSOLE'
         self.log_path = '/tmp'
         self.connected = False
+        self.compression_codecs = None
         self._node_identifier = None
 
         # socket or wss 
@@ -94,31 +95,33 @@ class Node(object):
         if self.verbosity == 'SILENT':
             # It will show us just errors
             logging.basicConfig(format='%(levelname)s %(asctime)s %(message)s', level=logging.ERROR)
+
             if self.log_type == 'FILE':
                 if not PosixPath(self.log_path).exists():
                     raise FileNotFoundError(f'{directory_where_file_log} not found')
 
                 log_file = '{0}/{1}.log'.format(self.log_path, self.name_of_connection)
-
                 logging.basicConfig(filename = log_file ,format='%(levelname)s %(asctime)s %(message)s', level=logging.ERROR)
+
             else:
                 logging.basicConfig(format='%(levelname)s %(asctime)s %(message)s', level=logging.ERROR)
+
         else:
             if self.log_type == 'FILE':
                 if not PosixPath(self.log_path).exists():
                         raise FileNotFoundError(f'{directory_where_file_log} not found')
                     
                 log_file = '{0}/{1}.log'.format(self.log_path, self.name_of_connection)
-
                 logging.basicConfig(filename = log_file ,format='%(levelname)s %(asctime)s %(message)s', level=logging.DEBUG)
+
             else:
                 logging.basicConfig(format='%(levelname)s %(asctime)s %(message)s', level=logging.DEBUG)
         
         self.super_sonic_reactor = self.SuperSonicReactor(self)
         self.node_request = self.NodeRequest(self)
-        
+
         time.sleep(2) # give 2 second to our engine
-        
+
         self.super_sonic_reactor.boost()
 
         self.node_request.say_hello()
@@ -126,6 +129,7 @@ class Node(object):
     def disconnect_from_node(self):
         if not self.connected:
             raise Exception('You are not connected')
+
         self.node_request.disconnect()
         self.connected = False
 
@@ -205,7 +209,7 @@ class Node(object):
 
         def put_data(self, callback = None, **kw):
 
-            message, identifier = FromClientToNode.put_data(**kw)
+            message, identifier = FromClientToNode.put_data(compression_codecs = self.node.compression_codecs, **kw)
 
             job = self.node.JobTicket(self.node)
 
@@ -225,7 +229,8 @@ class Node(object):
             return job
 
         def put_file(self, callback = None, **kw):
-            message, identifier = FromClientToNode.put_file(self.node._node_identifier, **kw)
+            message, identifier = FromClientToNode.put_file(self.node._node_identifier, 
+                                                            compression_codecs = self.node.compression_codecs, **kw)
 
             directory = str(PurePosixPath(kw['file_path']).parent)
             dda = (directory, True, False)
@@ -236,8 +241,10 @@ class Node(object):
                 self.test_dda_request(directory = directory, read = True, write = False)
 
             time.sleep(2) # Give 2 seconds waiting TestDDAComplete
+
             job = self.node.JobTicket(self.node)
             self._tested_dda[dda] = True
+
             # __Begin__ add a job
             job.identifier = identifier
             job.callback = callback
@@ -269,7 +276,7 @@ class Node(object):
             return job
 
         def put_complex_directory_files(self, callback = None, **kw):
-            message, identifier = FromClientToNode.put_complex_directory_files(**kw)
+            message, identifier = FromClientToNode.put_complex_directory_files(compression_codecs = self.node.compression_codecs, **kw)
             
             directory = kw['directory']
             dda = (directory, True, False)
@@ -318,6 +325,16 @@ class Node(object):
 
             return job
 
+        def put_web_site(self, callback = None, **kw):
+            '''
+            In this function we are going to upload
+            website using manifest and separate
+            NOTE: we should use it just for websites
+            '''
+            pass
+
+        def put_radio_channel(self, callback = None, **kw):
+            pass
 
         def put_directory_disk(self, callback = None, **kw):
             message, identifier = FromClientToNode.put_directory_disk(**kw)
@@ -409,6 +426,8 @@ class Node(object):
             time.sleep(2) # Give 2 seconds waiting TestDDAComplete
 
             # __Begin__ add a job
+            self._tested_dda[dda] = True
+
             job = self.node.JobTicket(self.node)
             job.identifier = identifier
             job.callback = callback
@@ -456,7 +475,7 @@ class Node(object):
         def modify_peer_note(self, **kw):
             pass
 
-        def remove_peer(self, **kw, **kw):
+        def remove_peer(self, **kw):
             pass
 
         def get_node(self, **kw):
@@ -480,7 +499,7 @@ class Node(object):
         def get_plugin_info(self, **kw):
             pass
 
-        def fcp_plugin_message(self, **kw, **kw):
+        def fcp_plugin_message(self, **kw):
             pass
 
         def watch_feeds(self, **kw):
@@ -630,7 +649,17 @@ class Node(object):
                     if response == 'Connection started':
                         self.node.connected = True
                         self.node._node_identifier = item['ConnectionIdentifier']
+                        
+                        self.node.compression_codecs = [(name, int(number[:-1])) 
+                                                            for name, number 
+                                                            in [i.split("(") 
+                                                                for i in item['CompressionCodecs'].split(
+                                                                        " - ")[1].split(", ")]]
+                        self.node.compression_codecs = ", ".join([name for name, num in self.node.compression_codecs])
+
                         logging.info(response)
+
+                        # callback
 
                 elif FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item):
                     identifier, key = FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item)
@@ -649,13 +678,12 @@ class Node(object):
                         logging.info('Generate keys')
 
                 elif FromNodeToClient.test_dda_reply(item):
-                    
+
                     write_filename = None
                     read_filename = ''
                     read_content = ''
                     directory = item['Directory']
 
-                    directory = item['Directory']
                     if 'ReadFilename' in item:
                         read_filename = item['ReadFilename']
 
@@ -748,7 +776,7 @@ class Node(object):
                         succeeded = int(item['Succeeded'])
                         required = int(item['Required'])
                         progress = (succeeded / required ) * 100.0
-                        job.progress = progress
+                        job.progress = round(progress, 2)
                         # __End__ update a job
 
                         logging.info('Progress {0:.2f}%'.format(progress))
@@ -775,6 +803,7 @@ class Node(object):
                         # __Begin__ update a job
                         job.response = item
                         job.ready = True
+                        job.progress = 100.00
                         job.remove_from_queue_when_finish()
                         # __End__ update a job
 
@@ -818,8 +847,11 @@ class Node(object):
                     identifier = FromNodeToClient.data_found(item)
                     job = self.node.job_store.get(identifier, False)####
                     if job:
-                        # __Begin__ update a job
+                        # callback if yes
+                        if job.callback:
+                            job.callback('DataFound', item)
 
+                        # __Begin__ update a job
                         if not job.ready:
 
                             logging.info('Data found')
@@ -846,6 +878,7 @@ class Node(object):
                                 data_length = int(item['DataLength'])
                                 job.response = (job.filename, item['Metadata.ContentType'], int(item['DataLength']))
                                 logging.info('Metadata.ContentType: {0} || DataLength: {1}'.format(item['Metadata.ContentType'], data_length))
+                                job.ready = True
 
                             elif job.is_stream:
                                 self.node.node_request.get_request_status(job.identifier)
@@ -878,8 +911,8 @@ class Node(object):
                             job.remove_from_queue_when_finish()
 
                         # callback if yes
-                        if job.callback:
-                            job.callback(item['header'], item)
+                            if job.callback:
+                                job.callback('Data', job.response)
 
                 elif FromNodeToClient.get_failed(item):
                     identifier = FromNodeToClient.get_failed(item)
@@ -899,15 +932,18 @@ class Node(object):
                                 self.node.node_request.get_stream_uri_redirect(job)
                             else:
                                 self.node.node_request.get_data_uri_redirect(job)
-
+                            
+                            if job.callback:
+                                job.callback(RedirectURI, item['RedirectURI'])
+                            
                             time.sleep(2)
 
                         else:
                             logging.error('Error: {0}'.format(item))
+                            if job.callback:
+                                job.callback(item['header'], item)
 
-                        # callback if yes
-                        if job.callback:
-                            job.callback(item['header'], item)
+                            job.remove_from_queue_when_finish()
 
                 elif FromNodeToClient.protocol_error(item):
                     
