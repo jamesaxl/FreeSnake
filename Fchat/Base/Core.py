@@ -17,7 +17,7 @@ import logging
 import uuid
 import base64
 import queue
-import urllib.pars
+from urllib.parse import unquote
 
 from . import ChatTemplate_pb2
 
@@ -36,10 +36,10 @@ create table chat_key (
     owner               text,
     friend              text unique,
     create_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    get_key          text unique,
-    put_key         text unique,
-    friend_message_key  text unique,
-    friend_status_key   text unique
+    get_message_key          text unique,
+    put_message_key         text unique,
+    friend_get_message_key  text unique,
+    friend_get_status_key   text unique
 );
 
  create table chat_log (
@@ -47,7 +47,7 @@ create table chat_key (
     from_nick       text,
     to_nick         text,
     create_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    public_key      text,
+    message_public_key      text,
     message         text,
     message_version integer
 );
@@ -62,7 +62,7 @@ DEFAULT_LOG_PATH = '{0}/log'.format(CONFIG_DIR)
 
 CONFIG_FILE = '{0}/conf'.format(CONFIG_DIR)
 
-class Fchat(object):
+class FchatPrv(object):
     '''
     Chat Core
     '''
@@ -94,9 +94,14 @@ class Fchat(object):
 
         #self.gui.core = self
 
+        # Queue for seding messages (message by message) for every user
         self.send_chat_queue = {}
+        
+        #receive messages from users
+        self.get_chat = {}
 
-        self.get_send_chat_queue = {}
+        # filter Failed put
+        self.send_chat_failed = []
 
     def connect(self):
         self.node = Node()
@@ -112,7 +117,7 @@ class Fchat(object):
 
     def disconnect(self):
         self.node.disconnect_from_node()
-        self.node.__del__()
+        del self.node
 
     def get_config(self):
         config = configparser.ConfigParser()
@@ -147,7 +152,7 @@ class Fchat(object):
         config.read(INFO_FILE)
         prv = config['STATUS']['PRV']
         
-        job = self.node.node_request.put_data( callback = self.change_status_msg_callback, 
+        job = self.node.node_request.put_data( callback = self.change_status_callback, 
                             uri = prv,
                             ignore_usk_datehints = True,
                             global_queue = True, persistence = 'forever',
@@ -160,8 +165,21 @@ class Fchat(object):
         but before cheking status of your friends 
         you should ask them for pub USK key
         '''
+        
+        db_filename = Path(DB_FILENAME)
+        owner = self.get_info()['OWNER']
 
-        pass
+        with sqlite3.connect(str(db_filename)) as conn:
+            cursor  = conn.cursor()
+            cursor.execute(''' SELECT * FROM chat_key WHERE friend = ? and owner = ?; ''', (friend, owner))
+            cursor_r = cursor.fetchone()
+
+            friend_get_status_key = cursor_r[7]
+
+            job = self.node.node_request.get_data( callback = self.check_user_status_callback,
+                                uri = friend_get_status_key,
+                                priority_class = 1 , global_queue = True)
+
 
     def check_unread_message(self, friend):
         '''
@@ -210,7 +228,7 @@ class Fchat(object):
 
         return pub, prv
 
-    def add_friend(self, get_key, put_key, friend, friend_message_key, friend_status_key):
+    def add_friend(self, get_message_key, put_message_key, friend, friend_get_message_key, friend_get_status_key):
         '''
         - get_key: key for retrieving your message (you should give it to your friend)
         - put_key: key for sending message that you generate before
@@ -233,9 +251,9 @@ class Fchat(object):
         with sqlite3.connect(str(db_filename)) as conn:
             conn.execute('''
                 insert into chat_key (owner, friend, 
-                get_key, put_key, friend_message_key, friend_status_key)
-                values (?, ?, ?, ?, ?, ?);''', (owner, friend, 
-                                             get_key, put_key, friend_message_key, friend_status_key))
+                get_message_key, put_message_key, friend_get_message_key, friend_get_status_key)
+                values (?, ?, ?, ?, ?, ?);''', ( owner, friend, get_message_key, put_message_key, 
+                                                 friend_get_message_key, friend_get_status_key ))
 
             conn.commit()
 
@@ -248,8 +266,9 @@ class Fchat(object):
         with sqlite3.connect(str(db_filename)) as conn:
             cursor  = conn.cursor()
             cursor.execute(''' SELECT * FROM chat_key WHERE friend = ?; ''', (friend, ))
-            chat_key = cursor.fetchone()
-            if chat_key:
+            cursor_r = cursor.fetchone()
+
+            if cursor_r:
                 return True
 
             return False
@@ -262,10 +281,10 @@ class Fchat(object):
         with sqlite3.connect(str(db_filename)) as conn:
             cursor  = conn.cursor()
             cursor.execute(''' SELECT * FROM chat_log WHERE from_nick = ? and to_nick = ? order by id desc LIMIT 1; ''', (owner, friend))
-            chat_log = cursor.fetchone()
+            cursor_r = cursor.fetchone()
 
-            if chat_log:
-                message_version = chat_log[6]
+            if cursor_r:
+                message_version = cursor_r[6]
                 return message_version + 1
 
             return 0
@@ -285,20 +304,21 @@ class Fchat(object):
 
             chat_key = cursor.fetchone()
 
-            get_key = chat_key[4]
-            put_key = chat_key[5]
+            get_message_key = chat_key[4]
+            put_message_key = chat_key[5]
 
             send_at = strftime('%Y-%m-%dT%H:%M:%S', localtime())
 
             message_version = self.last_message_version_of_owner_to_send(to_nick)
 
-            uri_to_send = put_key + '-' + str(message_version)
-            uri_to_get = get_key + '-' + str(message_version)
+            uri_to_send = put_message_key + '-' + str(message_version)
 
-            if not self.send_chat_queue.get(uri_to_get, False):
-                self.send_chat_queue[uri_to_get] = queue.Queue()
+            uri_to_get = get_message_key + '-' + str(message_version)
 
-            if self.send_chat_queue[uri_to_get].empty():
+            if not self.send_chat_queue.get(get_message_key, False):
+                self.send_chat_queue[get_message_key] = queue.Queue()
+
+            if self.send_chat_queue[get_message_key].empty():
                 chat_buf = ChatTemplate_pb2.Message()
 
                 chat_buf.date_time = send_at
@@ -315,12 +335,14 @@ class Fchat(object):
                                      real_time_flag = True, 
                                      extra_inserts_splitfile_header_block = 0 )
 
-                self.send_chat_queue[uri_to_get].put({'from_nick' : from_nick, 'to_nick': to_nick, 
-                                           'message' : message, 'send_at' : send_at})
+                self.send_chat_queue[get_message_key].put({'from_nick' : from_nick, 'to_nick': to_nick, 
+                                           'message' : message, 'send_at' : send_at, 'date_time' : send_at,
+                                           'put_message_key' : put_message_key})
 
             else :
-                self.send_chat_queue[uri_to_get].put({'from_nick' : from_nick, 'to_nick': to_nick, 
-                                           'message' : message, 'send_at' : send_at})
+                self.send_chat_queue[get_message_key].put({'from_nick' : from_nick, 'to_nick': to_nick, 
+                                           'message' : message, 'send_at' : send_at, 'put_message_key' : put_message_key, 
+                                           'date_time' : send_at})
 
         logging.info('Send request \'create a message in the node\'')
 
@@ -332,10 +354,10 @@ class Fchat(object):
         with sqlite3.connect(str(db_filename)) as conn:
             cursor  = conn.cursor()
             cursor.execute( ''' SELECT * FROM chat_log WHERE from_nick = ? AND to_nick = ? order by id DESC LIMIT 1; ''', (friend, owner) )
-            chat_log = cursor.fetchone()
+            cursor_r = cursor.fetchone()
 
-            if chat_log:
-                message_version = chat_log[6]
+            if cursor_r:
+                message_version = cursor_r[6]
                 return message_version + 1
 
             return 0
@@ -352,31 +374,54 @@ class Fchat(object):
             cursor.execute(''' SELECT * FROM chat_key WHERE friend = ? and owner = ?; ''', (friend, owner))
             chat_key = cursor.fetchone()
 
-            friend_key = chat_key[6]
+            friend_get_message_key = chat_key[6]
 
             message_version = self.last_message_version_of_friend_to_get(friend)
 
-            uri_to_get = friend_key + '-' + message_version
+            uri_to_get = friend_get_message_key + '-' + str(message_version)
 
-            if self.get_chat_queue.get(friend, False):
-                self.get_chat_queue[friend] = queue.Queue()
+            if not self.get_chat.get(friend, False):
+                self.get_chat[friend] = uri_to_get
 
-            if self.get_chat_queue[friend].empty():
-
-                job = self.node.node_request.get_data( callback = self.get_msg_callback,
+            job = self.node.node_request.get_data( callback = self.get_msg_callback,
                                 uri = uri_to_get,
                                 priority_class = 1 , global_queue = True)
 
-                self.get_chat_queue[friend].put(uri_to_get)
-
-            else:
-                self.get_chat_queue[friend].put(uri_to_get)
 
     def send_msg_callback(self, event, result):
 
+        def _send_msg(get_message_key):
+            if not self.send_chat_queue[get_message_key].empty():
+                chat_data_to_send = self.send_chat_queue[get_message_key].queue[0]
+
+                chat_buf = ChatTemplate_pb2.Message()
+                chat_buf.date_time = chat_data_to_send['date_time']
+                chat_buf.from_nick = chat_data_to_send['from_nick']
+                chat_buf.to_nick = chat_data_to_send['to_nick']
+                chat_buf.message = chat_data_to_send['message']
+                chat_buf.uniqueid = 'dfddfef'
+
+                put_message_key = chat_data_to_send['put_message_key']
+                
+                message_version = self.last_message_version_of_owner_to_send(chat_data_to_send['to_nick'])
+                uri_to_send = put_message_key + '-' + str(message_version)
+
+                job = self.node.node_request.put_data( callback = self.send_msg_callback, uri = uri_to_send,
+                                    global_queue = True, persistence = 'forever',
+                                    priority_class = 1, dont_compress = True, data = chat_buf.SerializeToString(),
+                                    real_time_flag = True )
+        
+        if event == 'PersistentPut':
+            if not unquote(result['URI']) in self.send_chat_failed:
+                self.send_chat_failed.append(unquote(result['URI']))
+        
         if event == 'PutSuccessful':
-            url_to_get = urllib.parse.unquote(result['URI'])
-            chat_data = self.send_chat_queue[url_to_get].get()
+            url_to_get = unquote(result['URI'])
+
+            #need test
+            get_message_key = '-'.join(url_to_get.split('-')[:-1])
+
+            chat_data = self.send_chat_queue[get_message_key].get()
             db_filename = Path(DB_FILENAME)
 
             # If We are using SSK
@@ -386,37 +431,34 @@ class Fchat(object):
                 conn.execute('''
 
                     INSERT INTO chat_log (from_nick, to_nick, 
-                    public_key, message, message_version)
+                    message_public_key, message, message_version)
                     VALUES (?, ?, ?, ?, ?);''', (chat_data['from_nick'], chat_data['to_nick'], 
                                                  url_to_get, chat_data['message'], message_version))
 
                 conn.commit()
 
                 # execute gui function
+                for uri in self.send_chat_failed:
+                    if uri == url_to_get:
+                        self.send_chat_failed.remove(uri)
 
-                print('{}[{}]> {}'.format(chat_data['date_time'], chat_data['nickname'], chat_data['message']))
+                print('{}[{}]> {}'.format(chat_data['date_time'], chat_data['from_nick'], chat_data['message']))
 
-            if not self.send_chat_queue[''].empty():
-                chat_data_to_send = self.send_chat_queue.queue[0]
-
-                chat_buf = ChatTemplate_pb2.Message()
-                chat_buf.date_time = chat_data_to_send['date_time']
-                chat_buf.from_nick = chat_data_to_send['from_nick']
-                chat_buf.to_nick = chat_data_to_send['to_nick']
-                chat_buf.message = chat_data_to_send['message']
-
-                message_uri_to_send = self.last_message_version_of_owner_to_send()
-
-                job = self.node.node_request.put_data( callback = self.send_msg_callback, uri = message_uri_to_send,
-                                    global_queue = True, persistence = 'forever',
-                                    priority_class = 1, dont_compress = True, data = chat_buf.SerializeToString(),
-                                    real_time_flag = True )
+            _send_msg(get_message_key)
 
         elif event == 'PutFailed':
+
             # execute gui function
-            logging.info('transfert is faild please try again')
+            # resend from queue
+
+            for get_message_key in self.send_chat_failed:
+                if not self.send_chat_queue[get_message_key].empty():
+                    _send_msg(get_message_key)
+
+            logging.error('transfert is faild please try again')
 
         else:
+
             # execute gui function
             logging.info('Event: {0}'.format(event))
 
@@ -424,16 +466,19 @@ class Fchat(object):
 
         if event == 'Data':
             chat_buf = ChatTemplate_pb2.Message()
+            
+            chat_message = result[0]
+            
+            try:
+                chat_buf.ParseFromString(chat_message)
+            except:
+                print('someone try to send you no supported msg')
+                return
 
-            chat_message = result[0].decode('utf-8')
+            uri_to_get = self.get_chat[chat_buf.from_nick]
 
-            chat_buf.ParseFromString(chat_message)
-
-            uri_to_get = self.get[chat_buf.from_nick]
-
-            # If We are using SSK
             message_version = uri_to_get.split('/')[-1].split('-')[-1]
-                        
+
             fmt = '%Y-%m-%dT%H:%M:%S %z'
             zone = strftime('%z', localtime())
             tmconv = strftime('%Y-%m-%dT%H:%M:%S %z', datetime.strptime('{0} {1}'.format(chat_buf.date_time, zone), fmt).utctimetuple())
@@ -442,32 +487,50 @@ class Fchat(object):
             with sqlite3.connect(str(db_filename)) as conn:
                 conn.execute( '''
                     INSERT INTO chat_log (from_nick, to_nick, 
-                    public_key, message, message_version)
+                    message_public_key, message, message_version)
                     VALUES (?, ?, ?, ?, ?);''', (chat_buf.from_nick, chat_buf.to_nick, 
                                                     uri_to_get, chat_buf.message, 
                                                     message_version) )
                 conn.commit()
 
                 print('{}[{}]> {}'.format(chat_buf.date_time, chat_buf.from_nick, chat_buf.message))
-
                 # execute gui function
 
         elif event == 'GetFaild':
+            
             # execute gui function
-            logging.info('transfert is faild please try again')
+            # re-check
+            
+            logging.error('transfert is faild please try again')
 
         else:
             # execute gui function
             logging.info('Event: {0}'.format(event))
 
-    def change_status_msg_callback(self, event, result):
+    def change_status_callback(self, event, result):
         if event == 'PutSuccessful':
+
+            print('status changed')
             logging.info('status is changed')
             # execute gui function
 
-        elif event == 'GetFaild':
+        elif event == 'PutFailed':
             logging.info('transfert is faild please try again')
             # execute gui function
+
+        else:
+            logging.info('Event: {0}'.format(event))
+            # execute gui function
+
+    def check_user_status_callback(self, event, result):
+        if event == 'Data':
+            # we should know which user
+            # execute gui function
+            print(result[0].decode('utf-8'))
+            logging.info('status is changed')
+
+        elif event == 'GetFaild':
+            logging.info('transfert is faild please try again')
 
         else:
             logging.info('Event: {0}'.format(event))

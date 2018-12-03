@@ -21,6 +21,7 @@ from time import gmtime, strftime, localtime
 
 from .Schema import FromClientToNode
 from .Schema import FromNodeToClient
+from .Schema import get_a_uuid
 from .Schema import barnamy_parsing_received_request_in_bytes
 
 FCP_VERSION = '2.0'
@@ -35,88 +36,174 @@ class Node(object):
     def __init__(self):
         self.__peer_addr = None
         self.__peer_port = None
-        self.name_of_connection = None
-        self.verbosity = 'SILENT'
-        self.log_type = 'CONSOLE'
-        self.log_path = '/tmp'
-        self.connected = False
-        self.compression_codecs = None
-        self._node_identifier = None
+        self.__name_of_connection = None
+        self.__verbosity = 'SILENT'
+        self.__log_type = 'CONSOLE'
+        self.__log_path = '/tmp'
+        self.__connected = False
+        self.__compression_codecs = None
+        self.__node_identifier = None
+        self.__engine_mode = 'socket' # socket or wss 
+        self.__list_peers = []
+        self.__list_peer = None
+        self.__node_data = None
 
-        # socket or wss 
-        self.__engine_mode = 'socket'
         self.job_store = self.JobStore()
         self.node_request = None
         self.super_sonic_reactor = None
         
-        @property
-        def engine_mode(self):
-            return self.__engine_mode
+    @property
+    def name_of_connection(self):
+        return self.__name_of_connection
 
-        @engine_mode.setter
-        def engine_mode(self, value):
-            if not value in ['socket', 'ws']:
-                raise Exception('your must set "socket" or "ws"')
-            self.__engine_mode = value
+    @name_of_connection.setter
+    def name_of_connection(self, value):
+        self.__name_of_connection = value
 
-        @property
-        def peer_addr(self):
-            return self.__peer_addr
+    @property
+    def verbosity(self):
+        return self.__verbosity
 
-        @peer_addr.setter
-        def peer_addr(self, value):
-            # 
-            self.__peer_addr = value
+    @verbosity.setter
+    def verbosity(self, value):
+        self.__verbosity = value
 
-        @property
-        def peer_port(self):
-            return self.__peer_port
+    @property
+    def log_type(self):
+        return self.__log_type
 
-        @peer_port.setter
-        def peer_port(self, value):
-            if not isinstance(value, int):
-                raise TypeError('peer_port must be integer')
-            self.__peer_port = value
+    @log_type.setter
+    def log_type(self, value):
+        self.__log_type = value
+
+    @property
+    def log_path (self):
+        return self.__log_path 
+
+    @log_path.setter
+    def log_path (self, value):
+        self.__log_path = value
+
+    @property
+    def connected (self):
+        return self.__connected 
+
+    @connected.setter
+    def connected (self, value):
+        self.__connected = value
+
+    @property
+    def compression_codecs (self):
+        return self.__compression_codecs
+
+    @compression_codecs.setter
+    def compression_codecs(self, value):
+        self.__compression_codecs = value
+
+
+    @property
+    def node_identifier (self):
+        return self.__node_identifier
+
+    @node_identifier.setter
+    def node_identifier(self, value):
+        self.__node_identifier = value
+
+    @property
+    def node_data(self):
+        return self.__node_data
+
+    @node_data.setter
+    def node_data(self, value):
+        self.__node_data = value
+
+    @property
+    def list_peers(self):
+        return self.__list_peers
+
+    @list_peers.setter
+    def list_peers(self, value):
+        self.__list_peers.append(value)
+
+    @list_peers.deleter
+    def list_peers(self):
+        self.__list_peers.clear()
+
+    @property
+    def list_peer(self):
+        return self.__list_peer
+
+    @list_peer.setter
+    def list_peer(self, value):
+        self.__list_peer = value
+
+    @property
+    def engine_mode(self):
+        return self.__engine_mode
+
+    @engine_mode.setter
+    def engine_mode(self, value):
+        if not value in ['socket', 'ws']:
+            raise Exception('your must set "socket" or "ws"')
+        self.__engine_mode = value
+
+    @property
+    def peer_addr(self):
+        return self.__peer_addr
+
+    @peer_addr.setter
+    def peer_addr(self, value):
+        self.__peer_addr = value
+
+    @property
+    def peer_port(self):
+        return self.__peer_port
+
+    @peer_port.setter
+    def peer_port(self, value):
+        if not isinstance(value, int):
+            raise TypeError('peer_port must be integer')
+        self.__peer_port = value
 
     def connect_to_node(self):
-        if self.connected:
+        if self.__connected:
             raise Exception('You are connected')
 
-        if not self.name_of_connection:
+        if not self.__name_of_connection:
             now_is = strftime('%Y-%m-%dT%H-%M-%S', localtime())
-            self.name_of_connection = 'FCP_{0}_{1}_{2}'.format(now_is, str(uuid.uuid4()), str(uuid.uuid4()))
+            self.__name_of_connection = 'FCP_{0}_{1}'.format(now_is, get_a_uuid())
 
-        if not self.verbosity in ['SILENT', 'DEBUG']:
+        if not self.__verbosity in ['SILENT', 'DEBUG']:
             raise Exception('verbosity must be \'SILENT\' or \'DEBUG\'')
 
-        if not self.log_type in ['CONSOLE', 'FILE']:
+        if not self.__log_type in ['CONSOLE', 'FILE']:
             raise Exception('log_type must be \'CONSOLE\' or \'FILE\'')
 
-        if self.verbosity == 'SILENT':
+        if self.__verbosity == 'SILENT':
             # It will show us just errors
             logging.basicConfig(format='%(levelname)s %(asctime)s %(message)s', level=logging.ERROR)
 
-            if self.log_type == 'FILE':
-                if not PosixPath(self.log_path).exists():
+            if self.__log_type == 'FILE':
+                if not PosixPath(self.__log_path).exists():
                     raise FileNotFoundError(f'{directory_where_file_log} not found')
 
-                log_file = '{0}/{1}.log'.format(self.log_path, self.name_of_connection)
+                log_file = '{0}/{1}.log'.format(self.__log_path, self.__name_of_connection)
                 logging.basicConfig(filename = log_file ,format='%(levelname)s %(asctime)s %(message)s', level=logging.ERROR)
 
             else:
                 logging.basicConfig(format='%(levelname)s %(asctime)s %(message)s', level=logging.ERROR)
 
         else:
-            if self.log_type == 'FILE':
-                if not PosixPath(self.log_path).exists():
+            if self.__log_type == 'FILE':
+                if not PosixPath(self.__log_path).exists():
                         raise FileNotFoundError(f'{directory_where_file_log} not found')
-                    
-                log_file = '{0}/{1}.log'.format(self.log_path, self.name_of_connection)
+
+                log_file = '{0}/{1}.log'.format(self.__log_path, self.__name_of_connection)
                 logging.basicConfig(filename = log_file ,format='%(levelname)s %(asctime)s %(message)s', level=logging.DEBUG)
 
             else:
                 logging.basicConfig(format='%(levelname)s %(asctime)s %(message)s', level=logging.DEBUG)
-        
+
         self.super_sonic_reactor = self.SuperSonicReactor(self)
         self.node_request = self.NodeRequest(self)
 
@@ -127,11 +214,11 @@ class Node(object):
         self.node_request.say_hello()
 
     def disconnect_from_node(self):
-        if not self.connected:
+        if not self.__connected:
             raise Exception('You are not connected')
 
         self.node_request.disconnect()
-        self.connected = False
+        self.__connected = False
 
     def reconnect_to_node(self):
         self.disconnect_from_node()
@@ -146,6 +233,7 @@ class Node(object):
             self.name = None
             self._tested_dda = {}
 
+        #+ __Begin__ Create connection
         def say_hello(self):
 
             message = FromClientToNode.client_hello( name = self.node.name_of_connection, 
@@ -154,18 +242,42 @@ class Node(object):
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
             time.sleep(1)
             self.__watch_global()
+        #- __End__ Create connection
 
+#########
+
+        #+ __Begin__ Persistence
         def __watch_global(self):
             message = FromClientToNode.watch_global()
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
+        #- __End__ Persistence
 
+#########
+
+        #+ __Begin__ Generate Keys
         def generate_keys(self, callback = None, uri_type = 'SSK', name = None):
-            self.uri_type = uri_type
-            self.name = name
+
+            if uri_type == 'KSK':
+                if name:
+                    ksk = 'KSK@{0}-{1}'.format(get_a_uuid(5), name)
+                    if callback:
+                        callback('KSKKeypair', ksk)
+
+                    logging.info('Generate keys')
+                    return ksk
+
+                ksk = 'KSK@{0}'.format(get_a_uuid(5))
+                if callback:
+                    callback('KSKKeypair', ksk)
+
+                logging.info('Generate keys')
+                return ksk
 
             message, identifier = FromClientToNode.generate_keys()
 
             job = self.node.JobTicket(self.node)
+            job.response = { 'uri_type' : uri_type, 'name' : name }
+
             # __Begin__ add a job
             job.identifier = identifier
             job.callback = callback
@@ -173,24 +285,22 @@ class Node(object):
             self.node.job_store[identifier] = job
             # __End__ add a job
 
-            if uri_type == 'KSK':
-                ksk = job.response
-                job.__del__()
-
-                return ksk
-
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
             time.sleep(1)
 
             while not job.ready:
                 time.sleep(1)
-            
+
             pub, prv = job.response
             job.__del__()
 
             return pub, prv
+        #- __End__ Generate Keys
 
+#########
+
+        #+ __Begin__ Testing the permission of given directory
         def test_dda_request(self, **kw):
 
             message = FromClientToNode.test_dda_request(**kw)
@@ -206,7 +316,11 @@ class Node(object):
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
             time.sleep(1)
+        #- __End__ Testing the permission of given directory
 
+#########
+
+        #+ __Begin__ Exchanging data in Freenet
         def put_data(self, callback = None, **kw):
 
             message, identifier = FromClientToNode.put_data(compression_codecs = self.node.compression_codecs, **kw)
@@ -229,7 +343,7 @@ class Node(object):
             return job
 
         def put_file(self, callback = None, **kw):
-            message, identifier = FromClientToNode.put_file(self.node._node_identifier, 
+            message, identifier = FromClientToNode.put_file(self.node.node_identifier, 
                                                             compression_codecs = self.node.compression_codecs, **kw)
 
             directory = str(PurePosixPath(kw['file_path']).parent)
@@ -240,7 +354,7 @@ class Node(object):
                 logging.info('We should run test_dda befor puting files')
                 self.test_dda_request(directory = directory, read = True, write = False)
 
-            time.sleep(2) # Give 2 seconds waiting TestDDAComplete
+            time.sleep(2) # Give 2 seconds waiting for TestDDAComplete
 
             job = self.node.JobTicket(self.node)
             self._tested_dda[dda] = True
@@ -277,7 +391,7 @@ class Node(object):
 
         def put_complex_directory_files(self, callback = None, **kw):
             message, identifier = FromClientToNode.put_complex_directory_files(compression_codecs = self.node.compression_codecs, **kw)
-            
+
             directory = kw['directory']
             dda = (directory, True, False)
 
@@ -285,7 +399,7 @@ class Node(object):
                 self._tested_dda[dda] = False
                 logging.info('We should run test_dda befor puting files')
                 self.test_dda_request(directory = directory, read = True, write = False)
-          
+
             time.sleep(2) # Give 2 seconds waiting TestDDAComplete
             job = self.node.JobTicket(self.node)
             self._tested_dda[dda] = True
@@ -305,7 +419,6 @@ class Node(object):
          # Still under test
         def put_complex_directory_redirect(self, callback = None, **kw):
             message, identifier = FromClientToNode.put_complex_directory_redirect(**kw)
-
             print(message)
 
         def put_complex_directory_data(self, **kw):
@@ -327,7 +440,7 @@ class Node(object):
 
         def put_web_site(self, callback = None, **kw):
             '''
-            In this function we are going to upload
+            Note: In this function we are going to upload
             website using manifest and separate
             NOTE: we should use it just for websites
             '''
@@ -375,12 +488,12 @@ class Node(object):
 
         def get_data_uri_redirect(self, job):
             message, identifier = FromClientToNode.get_data(**job.message)
+            
             job.identifier = identifier
             job.ready = False
             self.node.job_store[identifier] = job
 
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
-            
 
         def get_stream(self, callback = None, stream = None, **kw):
             message, identifier = FromClientToNode.get_stream(stream, **kw)
@@ -453,87 +566,187 @@ class Node(object):
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def get_request_status(self, identifier):
-            time.sleep(2)
             message = FromClientToNode.get_request_status(identifier)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+        #- __End__ Exchanging data in Freenet
+
+#########
+
+        #+ __Begin__ Managing peers
+        def list_peer(self, **kw):
+            message = FromClientToNode.list_peer(**kw)
+            time.sleep(2)
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
-        def list_peer(self, **kw):
-            pass
-
         def list_peers(self, **kw):
-            pass
+            message = FromClientToNode.list_peers(**kw)
+            del(self.node.list_peers)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def list_peer_notes(self, **kw):
-            pass
+            message = FromClientToNode.list_peer_notes(**kw)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
-        def add_peer(self, **kw):
-            pass
+        def add_peer_from_file(self, **kw):
+            message = FromClientToNode.add_peer(**kw)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+
+        def add_peer_from_uri(self, **kw):
+            message = FromClientToNode.add_peer(**kw)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+
+        def add_peer_from_data(self, **kw):
+            message = FromClientToNode.add_peer(**kw)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def modify_peer(self, **kw):
-            pass
+            message = FromClientToNode.modify_peer(**kw)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def modify_peer_note(self, **kw):
-            pass
+            message = FromClientToNode.modify_peer_note(**kw)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def remove_peer(self, **kw):
-            pass
+            message = FromClientToNode.remove_peer(**kw)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
+        #- __End__ Managing peers
 
+#########
+
+        #+ __Begin__ Managing Node
         def get_node(self, **kw):
-            pass
+            message = FromClientToNode.get_node(**kw)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
     
         def get_config(self, **kw):
+            '''
+            under construction
+            '''
             pass
     
         def modify_config(self, **kw):
+            '''
+            under construction
+            '''
             pass
+        #- __End__ Managing Node
 
+#########
+
+        #+ __Begin__ Managing Plugins
         def load_plugin(self, **kw):
-            pass
+            message = FromClientToNode.load_plugin(**kw)
+            time.sleep(2)
+            self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def reload_plugin(self, **kw):
+            '''
+            under construction
+            '''
             pass
 
         def remove_plugin(self, **kw):
+            '''
+            under construction
+            '''
             pass
 
         def get_plugin_info(self, **kw):
+            '''
+            under construction
+            '''
             pass
 
         def fcp_plugin_message(self, **kw):
+            '''
+            under construction
+            '''
             pass
+        #- __End__ Managing Plugins
 
+########
+
+        #+ __Begin__ 
         def watch_feeds(self, **kw):
+            '''
+            under construction
+            '''
             pass
+        #- __End__ 
 
+#########
+
+        #+ __Begin__ USK
         def subscribe_usk(self, **kw):
+            '''
+            under construction
+            '''
             pass
 
         def unsubscribe_usk(self, **kw):
+            '''
+            under construction
+            '''
+            pass
+        #-__End__ USK
+
+#########
+
+        #+ __Begin__ Managing Requests
+        def list_persistent_requests(self, **kw):
+            '''
+            under construction
+            '''
             pass
 
-        def list_persistent_requests(self, **kw):
-            pass
+        #def get_request_status(self, **kw):
+        #    message = FromClientToNode.get_request_status(identifier)
+        #    self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def modify_persistent_request(self, **kw):
+            '''
+            under construction
+            '''
             pass
 
         def remove_request(self, identifier):
             message = FromClientToNode.remove_request(identifier)
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
+        #- __End__ Managing Requests
 
+#########
+
+        #+ __Begin__ Disconnet from node
         def disconnect(self):
             message = FromClientToNode.disconnect()
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
             time.sleep(1)
             return
+        #- __End__ Disconnet from node
 
-    # The super Sonic Reactor of our Aircraft
-    # It is under testing but it works. made by JamesAxl
-    # Its nickname is 'Sohoi'
-    # Do not touch it please, because the Snake will be hurted :)
+#########
+
+        #+ __Begin__ Shutdown Node
+        def shutdown(self):
+            pass
+        #- __End__ Shutdown Node
+
     class SuperSonicReactor(object):
         '''
-
+        Note: The super Sonic Reactor of our Aircraft
+        It is under testing but it works. made by JamesAxl
+        Its nickname is 'Sohoi'
+        Do not touch it please, because the Snake will be hurted :) .
         '''
         def __init__(self, node):
             self.node = node
@@ -572,10 +785,12 @@ class Node(object):
             logging.info('Disconnect from Node')
             self.node.connected = False
 
-        # Sonic Boom One
-        # It will run When we need to retrieve data
-        # without stoping our engine
         def read_by_bytes(self, number_of_bytes_to_break):
+            '''
+            Sonic Boom-One
+            It will run When we need to retrieve data
+            Without stoping our engine
+            '''
             
             buf = bytearray()
             while True:
@@ -601,10 +816,12 @@ class Node(object):
 
             return result
 
-        # Sonic Boom Two
-        # It will run When we need to retrieve data and put it in a stream
-        # without stoping our engine
-        def read_by_bytes_stream(self, number_of_bytes_to_break, our_stream):            
+        def read_by_bytes_stream(self, number_of_bytes_to_break, our_stream):
+            '''
+            Sonic Boom-Two
+            It will run When we need to retrieve data and put it in a stream
+            without stoping our engine
+            '''
             buf = bytearray()
             while True:
                 c = self.engine.listen_to_node(1)
@@ -648,27 +865,72 @@ class Node(object):
                     response = FromNodeToClient.client_hello(item)
                     if response == 'Connection started':
                         self.node.connected = True
-                        self.node._node_identifier = item['ConnectionIdentifier']
+                        self.node.node_identifier = item['ConnectionIdentifier']
                         
                         self.node.compression_codecs = [(name, int(number[:-1])) 
                                                             for name, number 
                                                             in [i.split("(") 
                                                                 for i in item['CompressionCodecs'].split(
                                                                         " - ")[1].split(", ")]]
+
                         self.node.compression_codecs = ", ".join([name for name, num in self.node.compression_codecs])
 
                         logging.info(response)
 
                         # callback
 
-                elif FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item):
-                    identifier, key = FromNodeToClient.generate_keys(self.node.node_request.uri_type, self.node.node_request.name, item)
+                elif FromNodeToClient.node_data(item):
+                    self.node.node_data = item
+                    logging.info('{0} {1}'.format(item['header'], item['identity']))
+
+                elif FromNodeToClient.peer(item):
+                    self.node.list_peers = item
+                    logging.info('{0} {1}'.format(item['header'], item['identity']))
+
+                elif FromNodeToClient.end_list_peers(item):
+                    self.node.list_peer = item
+                    logging.info('{0}'.format(item['header']))
+
+                elif FromNodeToClient.generate_keys(item):
+
+                    identifier = FromNodeToClient.generate_keys(item)
                     job = self.node.job_store.get(identifier, False) ####
+                     
                     if job:
 
                         # __Begin__ update a job
-                        job.response = key
+                        private_key = item['InsertURI']
+                        public_key = item['RequestURI']
+
+                        if job.response['uri_type'] == 'SSK':
+                            if job.response['name']:
+                                public_key = '{0}{1}'.format(item['RequestURI'], job.response['name'])
+                                private_key = '{0}{1}'.format(item['InsertURI'], job.response['name'])
+
+                            else :
+                                public_key = '{0}'.format(item['RequestURI'])
+                                private_key = '{0}'.format(item['InsertURI'])
+
+                        elif job.response['uri_type'] == 'USK':
+                            if job.response['name']:
+                                public_key = '{0}{1}/0'.format(public_key, job.response['name'])
+                                private_key = '{0}{1}/0'.format(private_key, job.response['name'])
+
+                            else:
+                                public_key = '{0}0'.format(public_key)
+                                private_key = '{0}0'.format(private_key)
+
+
+                            public_key = public_key.replace('SSK', 'USK')
+                            private_key = private_key.replace('SSK', 'USK')
+
+                            item['header'] = 'USKKeypair'
+
+
+                        job.response = (public_key, private_key)
+
                         job.ready = True
+
                         # __End__ update a job
 
                         # callback if yes
@@ -896,7 +1158,6 @@ class Node(object):
                             else:
                                 self.node.node_request.get_request_status(job.identifier)
                                 logging.info('Running Sonic Boom to retrieve Data')
-
                                 self.lock.acquire()
                                 our_data = self.read_by_bytes(int(item['DataLength']))
                                 self.lock.release()
@@ -917,25 +1178,29 @@ class Node(object):
                 elif FromNodeToClient.get_failed(item):
                     identifier = FromNodeToClient.get_failed(item)
                     job = self.node.job_store.get(identifier, False)
+
                     if job:
                         if item.get('RedirectURI', None):
 
                             logging.warning('Redirect to {}'.format(item['RedirectURI']))
 
-                            job.remove_from_queue_when_finish()
-
                             job.message['uri'] = item['RedirectURI']
+                            
+                            #we should remove the old one
+                            #job.remove_from_queue_when_finish()
 
                             if job.message.get('filname', False):
                                 self.node.node_request.get_filename_uri_redirect(job)
+
                             elif job.message.get('stream', False):
                                 self.node.node_request.get_stream_uri_redirect(job)
+                            
                             else:
                                 self.node.node_request.get_data_uri_redirect(job)
                             
                             if job.callback:
-                                job.callback(RedirectURI, item['RedirectURI'])
-                            
+                                job.callback('RedirectURI', item['RedirectURI'])
+
                             time.sleep(2)
 
                         else:
@@ -947,19 +1212,23 @@ class Node(object):
 
                 elif FromNodeToClient.protocol_error(item):
                     
-                    logging.error('Error: {0}'.format(item))
+                    result = FromNodeToClient.protocol_error(item)
 
-                    # callback if yes
-                    if job.callback:
-                        job.callback(item['header'], item)
+                    if isinstance(result, str):
+                        identifier = result
+                        job = self.node.job_store.get(identifier, False)
+                        if job:
+                            # callback if yes
+                            job.callback(item['header'], item)
+                            job.response = item
+                            del self.node.job_store[identifier]
+
+                    logging.error('Error: {0}'.format(item))
 
                 elif FromNodeToClient.identifier_collision(item):
-
                     logging.error('Error: {0}'.format(item))
 
                     # callback if yes
-                    if job.callback:
-                        job.callback(item['header'], item)
                 
                 elif FromNodeToClient.sending_to_network(item):
                     identifier = FromNodeToClient.sending_to_network(item)
@@ -1080,7 +1349,7 @@ class Node(object):
 
         def __init__(self):
             super(dict, self).__init__()
-            self.__max = 10
+            self.__max = 20
 
         def is_full(self):
             return self.__max == self.keys().__len__()
@@ -1109,6 +1378,7 @@ class Node(object):
             self.__callback = None
             self.__ready = False
             self.__progress = 0
+
 
             # After: We can need to resend the request 
             # and also to get the type of request

@@ -72,8 +72,8 @@ class FromClientToNode(object):
 
         schema_succ =   {
                         'node_identifier': {'type' : 'string', 'required': True, 'empty': False},
-                        'with_volatile' : {'type' : 'boolean', 'required': True, 'empty': False},
-                        'with_metadata' : {'type' : 'boolean', 'required': True, 'empty': False},
+                        'with_volatile' : {'type' : 'boolean', 'required': False, 'empty': False},
+                        'with_metadata' : {'type' : 'boolean', 'required': False, 'empty': False},
                     }
 
         v_succ = Validator(schema_succ)
@@ -82,13 +82,13 @@ class FromClientToNode(object):
             raise Exception(v_succ.errors)
 
         node_identifier = kw['node_identifier']
-        list_p += 'NodeIdentifier={0}\n'.fromat(node_identifier)
+        list_p += 'NodeIdentifier={0}\n'.format(node_identifier)
 
-        with_volatile = kw['with_volatile']
-        list_p += 'WithVolatile{0}\n'.fromat(with_volatile)
+        with_volatile = kw.get('with_volatile', False)
+        list_p += 'WithVolatile={0}\n'.format(with_volatile)
 
-        with_metadata = kw['with_metadata']
-        list_p += 'WithMetadata{0}\n'.fromat(with_metadata)
+        with_metadata = kw.get('with_metadata', False)
+        list_p += 'WithMetadata={0}\n'.format(with_metadata)
 
         list_p += 'EndMessage\n'
 
@@ -104,11 +104,11 @@ class FromClientToNode(object):
         EndMessage\n
         '''
 
-        list_ps = 'ListPeer\n'
+        list_ps = 'ListPeers\n'
 
         schema_succ =   {
-                        'with_volatile' : {'type' : 'boolean', 'required': True, 'empty': False},
-                        'with_metadata' : {'type' : 'boolean', 'required': True, 'empty': False},
+                        'with_volatile' : {'type' : 'boolean', 'required': False, 'empty': False },
+                        'with_metadata' : {'type' : 'boolean', 'required': False, 'empty': False },
                     }
 
         v_succ = Validator(schema_succ)
@@ -116,18 +116,18 @@ class FromClientToNode(object):
         if not v_succ.validate(kw):
             raise Exception(v_succ.errors)
 
-        with_volatile = kw['with_volatile']
-        list_ps += 'WithVolatile{0}\n'.fromat(with_volatile)
+        with_volatile = kw.get('with_volatile', False)
+        list_ps += 'WithVolatile={0}\n'.format(with_volatile)
 
-        with_metadata = kw['with_metadata']
-        list_ps += 'WithMetadata{0}\n'.fromat(with_metadata)
+        with_metadata = kw.get('with_metadata', False)
+        list_ps += 'WithMetadata={0}\n'.format(with_metadata)
 
         list_ps += 'EndMessage\n'
 
         return list_ps.encode('utf-8')
 
     @staticmethod
-    def list_peer_note(**kw):
+    def list_peer_notes(**kw):
         '''
         ListPeerNotes\n
         NodeIdentifier=[UB] UberNode\n
@@ -146,7 +146,7 @@ class FromClientToNode(object):
             raise Exception(v_succ.errors)
 
         node_identifier = kw['node_identifier']
-        list_ps += 'NodeIdentifier{0}\n'.fromat(node_identifier)
+        list_p_note += 'NodeIdentifier={0}\n'.format(node_identifier)
 
         list_p_note += 'EndMessage\n'
 
@@ -162,10 +162,37 @@ class FromClientToNode(object):
         EndMessage\n
         '''
 
-        pass
+        add_peer_from_f = 'AddPeer\n'
+
+        schema_succ = {
+                        'trust' : {'type' : 'string', 'required': True, 'empty': False, 'allowed' : ['LOW', 'NORMAL', 'HIGH' ]},
+                        'visibility' : {'type' : 'string', 'required': True, 'empty': False, 'allowed' : ['NO', 'NAME_ONLY', 'YES' ]},
+                        'file_path' : {'type' : 'string', 'required': True, 'empty': False},
+                        }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        file_path = kw['file_path']
+        if not PosixPath(file_path).exists():
+                raise FileNotFoundError('File not found: {0}'.format(file_path))
+
+        trust = kw['trust']
+        add_peer_from_f = 'Trust={0}\n'.format(trust)
+
+        visibility = kw['visibility']
+        add_peer_from_f = 'Visibility={0}\n'.format(visibility)
+
+        add_peer_from_f = 'File={0}\n'.format(file_path)
+
+        add_peer_from_f += 'EndMessage\n'
+
+        return add_peer_from_f.encode('utf-8')
 
     @staticmethod
-    def add_peer_from_uri(**kw):
+    def add_peer_from_url(**kw):
         '''
         AddPeer\n
         Trust=NORMAL\n
@@ -174,7 +201,31 @@ class FromClientToNode(object):
         EndMessage\n
         '''
 
-        pass
+        add_peer_from_u = 'AddPeer\n'
+
+        schema_succ = {
+                        'trust' : {'type' : 'string', 'required': True, 'empty': False, 'allowed' : ['LOW', 'NORMAL', 'HIGH' ]},
+                        'visibility' : {'type' : 'string', 'required': True, 'empty': False, 'allowed' : ['NO', 'NAME_ONLY', 'YES' ]},
+                        'url' : {'type' : 'string', 'required': True, 'empty': False},
+                        }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        trust = kw['trust']
+        add_peer_from_u = 'Trust={0}\n'.format(trust)
+
+        visibility = kw['visibility']
+        add_peer_from_u = 'Visibility={0}\n'.format(visibility)
+
+        url = kw['url']
+        add_peer_from_u = 'URL={0}\n'.format(url)
+
+        add_peer_from_u += 'EndMessage\n'
+
+        return add_peer_from_u.encode('utf-8')
 
     @staticmethod
     def add_peer_from_data(**kw):
@@ -195,7 +246,67 @@ class FromClientToNode(object):
         EndMessage\n
         '''
 
-        pass
+        add_peer_from_d = 'AddPeer\n'
+
+        schema_succ = {
+                        'trust' : {'type' : 'string', 'required': True, 'empty': False, 'allowed' : ['LOW', 'NORMAL', 'HIGH' ]},
+                        'visibility' : {'type' : 'string', 'required': True, 'empty': False, 'allowed' : ['NO', 'NAME_ONLY', 'YES' ]},
+                        'physical_udp' : {'type' : 'string', 'required': True, 'empty': False},
+                        'last_good_version' : {'type' : 'string', 'required': True, 'empty': False},
+                        'ark_pub_url' : {'type' : 'string', 'required': True, 'empty': False},
+                        'ark_number' : {'type' : 'integer', 'required': True, 'empty': False},
+                        'identity' : {'type' : 'string', 'required': True, 'empty': False},
+                        'my_name' : {'type' : 'string', 'required': True, 'empty': False},
+                        'base64' : {'type' : 'boolean', 'required': False, 'empty': False},
+                        'location' : {'type' : 'string', 'required': True, 'empty': False},
+                        'test_net' : {'type' : 'boolean', 'required': False, 'empty': False},
+                        'version' : {'type' : 'string', 'required': True, 'empty': False},
+                      }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        trust = kw['trust']
+        add_peer_from_d = 'Trust={0}\n'.format(trust)
+
+        visibility = kw['visibility']
+        add_peer_from_d = 'Visibility={0}\n'.format(visibility)
+
+        physical_udp = kw['physical_udp']
+        add_peer_from_d = 'physical.udp={0}\n'.format(physical_udp)
+        
+        last_good_version = kw['last_good_version']
+        add_peer_from_d = 'lastGoodVersion={0}\n'.format(last_good_version)
+
+        ark_pub_url = kw['ark_pub_url']
+        add_peer_from_d = 'ark.pubURI={0}\n'.format(ark_pub_url)
+
+        ark_number = kw['ark_number']
+        add_peer_from_d = 'ark.number={0}\n'.format(ark_number)
+
+        identity = kw['identity']
+        add_peer_from_d = 'identity={0}\n'.format(identity)
+
+        my_name = kw['my_name']
+        add_peer_from_d = 'myName={0}\n'.format(my_name)
+
+        base64 = kw.get('base64', False)
+        add_peer_from_d = 'base64={0}\n'.format(base64)
+
+        location = kw['location']
+        add_peer_from_d = 'location={0}\n'.format(location)
+
+        test_net = kw.get('test_net', False)
+        add_peer_from_d = 'testnet={0}\n'.format(test_net)
+
+        version = kw['version']
+        add_peer_from_d = 'URL={0}\n'.format(version)
+
+        add_peer_from_d += 'EndMessage\n'
+
+        return add_peer_from_d.encode('utf-8')
 
     @staticmethod
     def modify_peer(**kw):
@@ -209,8 +320,45 @@ class FromClientToNode(object):
         IgnoreSourcePort=false\n
         EndMessage\n
         '''
+        
+        modify_p = 'ModifyPeer\n'
 
-        pass
+        schema_succ = {
+                        'node_identifier' : {'type' : 'string', 'required': True, 'empty': False,},
+                        'allow_local_addresses' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'is_disabled' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'is_listen_only' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'is_burst_only' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'ignore_source_port' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        node_identifier = kw['node_identifier']
+        modify_p = 'NodeIdentifier={0}\n'.format(node_identifier)
+
+        allow_local_addresses = kw['allow_local_addresses']
+        modify_p = 'AllowLocalAddresses={0}\n'.format(allow_local_addresses)
+
+        is_disabled = kw['is_disabled']
+        modify_p = 'IsDisabled={0}\n'.format(is_disabled)
+
+        is_listen_only = kw['is_listen_only']
+        modify_p = 'IsListenOnly={0}\n'.format(is_listen_only)
+
+        is_burst_only = kw['is_burst_only']
+        modify_p = 'IsBurstOnly={0}\n'.format(is_burst_only)
+
+        ignore_source_port = kw['ignore_source_port']
+        modify_p = 'IgnoreSourcePort={0}\n'.format(ignore_source_port)
+
+        modify_p += 'EndMessage\n'
+
+        return modify_p.encode('utf-8')
+
 
     @staticmethod
     def remove_peer(**kw):
@@ -220,7 +368,24 @@ class FromClientToNode(object):
         EndMessage
         '''
 
-        pass
+        remove_p = 'RemovePeer\n'
+
+        schema_succ = {
+                        'node_identifier' : {'type' : 'string', 'required': True, 'empty': False,},
+
+                        }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        node_identifier = kw['node_identifier']
+        remove_p = 'NodeIdentifier={0}\n'.format(node_identifier)
+
+        remove_p += 'EndMessage\n'
+
+        return remove_p.encode('utf-8')
 
     @staticmethod
     def get_node(**kw):
@@ -231,8 +396,182 @@ class FromClientToNode(object):
         EndMessage
         '''
 
+        get_n = 'GetNode\n'
+
+        schema_succ = {
+                        'give_opennet_ref' : {'type' : 'boolean', 'required': False, 'empty': False},
+                        'with_private' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'with_volatile' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        give_opennet_ref = kw.get('give_opennet_ref', False)
+        if give_opennet_ref:
+            get_n = 'WithPrivate={0}\n'.format(give_opennet_ref)
+
+        with_private = kw.get('with_private', False)
+        if with_private:
+            get_n = 'WithPrivate={0}\n'.format(with_private)
+        
+        with_volatile = kw.get('with_volatile', False)
+        if with_volatile:
+            get_n = 'WithVolatile={0}\n'.format(with_volatile)
+
+        get_n += 'EndMessage\n'
+
+        return get_n.encode('utf-8')
+
+    def get_config(**kw):
+        '''
+        under construction
+        '''
         pass
 
+    def modify_config(**kw):
+        '''
+        under construction
+        '''
+        pass
+
+    def load_plugin(**kw):
+        '''
+        LoadPlugin
+        Identifier=moohmeep
+        PluginURL=HelloWorld
+        URLType=official
+        Store=true
+        Source=https
+        EndMessage
+        '''
+
+        load_plg = 'LoadPlugin\n'
+
+        schema_succ = {
+                        'plugin_url' : {'type' : 'string', 'required': True, 'empty': False,},
+                        'url_type' : {'type' : 'string', 'required': False, 'empty': False,},
+                        'store' : {'type' : 'string', 'required': False, 'empty': False,},
+                        'source' : {'type' : 'string', 'required': False, 'empty': False,},
+                        }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        identifier = get_a_uuid()
+        load_plg = 'Identifier={0}\n'.format(identifier)
+
+        plugin_url = kw['plugin_url']
+        load_plg = 'PluginURL={0}\n'.format(plugin_url)
+
+        url_type = kw['url_type']
+        load_plg = 'URLType={0}\n'.format(url_type)
+
+        store = kw['store']
+        load_plg = 'Store={0}\n'.format(store)
+
+        source = kw['source']
+        load_plg = 'Source={0}\n'.format(source)
+
+        load_plg += 'EndMessage\n'
+
+        return load_plg.encode('utf-8')
+
+    def reload_plugin(**kw):
+        '''
+        under construction
+        '''
+        pass
+
+    def remove_plugin(**kw):
+        '''
+        under construction
+        '''
+        pass
+
+    def get_plugin_info (**kw):
+        '''
+        under construction
+        '''
+        pass
+
+    def fcp_plugin_message (**kw):
+        '''
+        under construction
+        '''
+        pass
+    
+    def watch_feeds (**kw):
+        '''
+        under construction
+        '''
+        pass
+
+    def subscribe_usk (**kw):
+        '''
+        under construction
+        '''
+        pass
+
+    def unsubscribe_usk (**kw):
+        '''
+        under construction
+        '''
+        pass
+
+    def get_request_status(**kw):
+        '''
+        Identifier: String\n
+        Global: Boolean (default=false)\n
+        OnlyData: boolean (default=false)\n
+        '''
+        get_request_s = 'LoadPlugin\n'
+
+        schema_succ = {
+                        'identifier' : {'type' : 'string', 'required': True, 'empty': False,},
+                        'global_queue' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'only_data' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        identifier = kw['identifier']
+        get_request_s = 'Identifier={0}\n'.format(identifier)
+
+        global_queue = kw.get('global_queue', False)
+        get_request_s = 'Global={0}\n'.format(global_queue)
+
+        only_data = kw.get('only_data', False)
+        get_request_s = 'OnlyData={0}\n'.format(only_data)
+
+        get_request_s += 'EndMessage\n'
+
+        return get_request_s.encode('utf-8')
+
+    def list_persistent_requests(**kw):
+        '''
+        under construction
+        '''
+        pass
+
+    def modify_persistent_request(**kw):
+        '''
+        under construction
+        '''
+        pass
+
+    def shutdown(**kw):
+        '''
+        under construction
+        '''
+        pass
 
     # __Begin__ GenerateSSK
     @staticmethod
@@ -398,7 +737,7 @@ class FromClientToNode(object):
                         'real_time_flag' : {'type' : 'boolean', 'required': False} ,
                         'metadata_threshold' : {'type' : 'integer', 'required': False} ,
                         'ignore_usk_datehints' : {'type' : 'boolean', 'required': False} ,
-                        #'data' : {'type' : 'string', 'required': True, 'empty': False}
+                        'data' : {'anyof_type': ['string', 'binary'], 'required': True, 'empty': False}
                     }
 
         v_succ = Validator(schema_succ)
@@ -498,17 +837,24 @@ class FromClientToNode(object):
         if global_queue:
             persistence = 'forever'
 
-        data = kw.get('data', None)
+        data = kw['data']
+        
+        if isinstance(data, str):
+            data_length = len(data.encode('utf-8'))
+            put_d += 'DataLength={0}\n'.format(data_length)
+            put_d += 'Data\n{0}\n'.format(data)
+            return put_d.encode('utf-8'), identifier
 
-        if not data:
-            raise Exception('data field is required')
+        elif isinstance(data, bytes):
+            data_length = len(data)
+            put_d += 'DataLength={0}\n'.format(data_length)
+            put_d = put_d.encode('utf-8')
+            put_d += b'Data\n%b\n' %data
+            return put_d, identifier
 
-        data_length = len(data.encode('utf-8'))
-        put_d += 'DataLength={0}\n'.format(data_length)
-        put_d += 'Data\n{0}\n'.format(data)
+        print(type(data))
 
-
-        return put_d.encode('utf-8'), identifier
+        
 
     @staticmethod
     def put_file(node_identifier, **kw):
@@ -2165,7 +2511,6 @@ class FromNodeToClient(object):
         return False
 
     # __Begin__ ProtocolError
-
     @staticmethod
     def protocol_error(data):
         '''
@@ -2174,11 +2519,143 @@ class FromNodeToClient(object):
         'There is no @ in that URI! (pub)', 'Global': 'true', 'footer': 'EndMessage'}
         '''
         schema_succ = {
-                   'header': {'type' : 'string', 'allowed': ['ProtocolError']},
-                   'Identifier' : {'type' : 'string', 'required' : False} ,
+                   'header': {'type' : 'string', 'required' : True ,'allowed': ['ProtocolError']},
+                   'Identifier' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                   'CodeDescription' : {'type' : 'string', 'required' : False, 'empty' : False} ,
                    'Fatal' : {'type' : 'string', 'required' : False} ,
-                   'Code' : {'type' : 'string', 'required' :False} ,
-                   'Global' : {'type' : 'string', 'required': False} ,
+                   'Code' : {'type' : 'string', 'required' :False, 'empty' : False} ,
+                   'ExtraDescription' : {'type' : 'string', 'required' :False, 'empty' : False} ,
+                   'Error' : {'type' : 'string', 'required' :False, 'empty' : False} ,
+                   'Global' : {'type' : 'string', 'required': False, 'empty' : False} ,
+                   'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            if data.get('Identifier', False):
+                return data['Identifier']
+            else:
+                return True
+
+        return False
+    # __End__ ProtocolError
+
+    
+    @staticmethod
+    def node_data(data):
+        '''
+        {'header': 'NodeData', 'identity': 'Metallica', 
+        'opennet': 'false', 'myName': 'Freenet node with no name #-4203359245147819032', 
+        'location': '0.5465253465248109', 'version': 'Fred,0.7,1.0,1483', 
+        'sigP256': '', 'lastGoodVersion': 'Fred,0.7,1.0,1475', 'auth.negTypes': '10', 
+        'ecdsa.P256.pub': '', 
+        'physical.udp': '', 
+        'footer': 'EndMessage'}
+        '''
+
+        schema_succ = {
+                   'header': {'type' : 'string', 'required' : True ,'allowed': ['NodeData']},
+                   'identity' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                   'myName' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                   'location' : {'type' : 'string', 'required' : False} ,
+                   'version' : {'type' : 'string', 'required' :False, 'empty' : False} ,
+                   'sigP256' : {'type' : 'string', 'required' :False, 'empty' : False} ,
+                   'lastGoodVersion' : {'type' : 'string', 'required' :False, 'empty' : False} ,
+                   'auth.negTypes' : {'type' : 'string', 'required': False, 'empty' : False} ,
+                   'ecdsa.P256.pub' : {'type' : 'string', 'required': False, 'empty' : False} ,
+                   'physical.udp' : {'type' : 'string', 'required': False, 'empty' : False} ,
+                   'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            if data.get('Identifier', False):
+                return data['Identifier']
+            else:
+                return True
+
+        return False
+
+    @staticmethod
+    def peer(data):
+        '''
+         {'header': 'Peer', 'totalOutput': '82554155', 'seed': 'false', 
+        'identity': 'exZV5Xviq5sQ7jUxg1X2Y9wmDVvgB17bwLJad5EWTo4', 'opennet': 'true', 
+        'location': '0.13966284047703492', 'testnet': 'false', 'version': 'Fred,0.7,1.0,1483',
+         'totalInput': '110536669', 'lastGoodVersion': 'Fred,0.7,1.0,1475',
+          'metadata.timeLastSuccess': '1543413327847', 'metadata.hadRoutableConnectionCount': '1788', 
+          'metadata.timeLastReceivedPacket': '1543413330538', 'metadata.timeLastReceivedAck': '1543413330538', 
+          'metadata.timeLastConnected': '1543413331000', 
+          'metadata.peersLocation': 'something', 'metadata.routableConnectionCheckCount': '1788', 
+          'metadata.timeLastRoutable': '1543413330995', 'metadata.detected.udp': '118.106.240.249:11942', 
+          'auth.negTypes': '10', 'ecdsa.P256.pub': 'rdf', 'volatile.routingBackoffRT': '95103', 
+          'volatile.routingBackoffLengthRT': '1024000', 'volatile.routingBackoffLengthBulk': '2000', 
+          'volatile.overloadProbability': '31.99141059960464', 'volatile.routingBackoffBulk': '0', 
+          'volatile.lastRoutingBackoffReasonRT': 'ForwardRejectedOverload', 
+          'volatile.routingBackoffPercent': '0.07198172623913952', 'volatile.averagePingTime': '299.6207109111797', 
+          'volatile.percentTimeRoutableConnection': '100.0', 'volatile.lastRoutingBackoffReasonBulk': 'ForwardRejectedOverload', 
+          'volatile.status': 'BACKED OFF', 'ark.number': '21', 'ark.pubURI': 'something', 'footer': 'EndMessage'}
+        '''
+
+        schema_succ = {
+                    'header': {'type' : 'string',  'required' : True, 'empty': False, 'allowed': ['Peer']},
+                    'totalOutput' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'seed' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'identity' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'opennet' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'location' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'testnet' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'version' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'totalInput' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'lastGoodVersion' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'metadata.timeLastSuccess' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.hadRoutableConnectionCount' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.timeLastReceivedPacket' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.timeLastReceivedAck' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.timeLastConnected' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.peersLocation' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.hadRoutableConnectionCount' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.timeLastRoutable' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.neverConnected' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.routableConnectionCheckCount' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'metadata.detected.udp' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'auth.negTypes' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'ecdsa.P256.pub' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'volatile.routingBackoffRT' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.routingBackoffLengthRT' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.routingBackoffLengthBulk' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.overloadProbability' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.peerAddedTime' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.routingBackoffBulk' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.lastRoutingBackoffReasonRT' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.lastRoutingBackoffReasonBulk' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.routingBackoffPercent' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.averagePingTime' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.percentTimeRoutableConnection' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'volatile.status' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    'ark.number' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'ark.pubURI' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'physical.udp' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                    'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+                }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return True
+
+        return False
+
+    @staticmethod
+    def end_list_peers(data):
+        '''
+        {'header': 'EndListPeers', 'footer': 'EndMessage'}
+        '''
+
+        schema_succ = {
+                   'header': {'type' : 'string', 'required' : True, 'empty': False,'allowed': ['EndListPeers']},
                    'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                 }
 
@@ -2188,7 +2665,6 @@ class FromNodeToClient(object):
             return True
 
         return False
-    # __End__ ProtocolError
 
     @staticmethod
     def get_failed(data):
@@ -2223,7 +2699,7 @@ class FromNodeToClient(object):
     # __Begin__ WatchGlobal
 
     @staticmethod
-    def generate_keys(uri_type, name, data):
+    def generate_keys(data):
         '''
         data received from Node after parsing:
 
@@ -2231,57 +2707,18 @@ class FromNodeToClient(object):
         'RequestURI' : ,'Identifier' : 'SSK@Bsomething', 'footer' : 'EndMessage' }
         '''
 
-        schema_uri_type = { 'uri_type': { 'type' : 'string', 'allowed': ['USK', 'SSK', 'KSK']}, 
-                            'name' : { 'type' : 'string', 'nullable': True } }
-
-        v_uri_type = Validator(schema_uri_type)
-        
-        if not v_uri_type.validate({'uri_type' : uri_type, 'name' : name}):
-            return False
-
         schema_succ = {
-                        'header': {'type' : 'string'},
-                        'InsertURI' : {'type' : 'string'} ,
-                        'RequestURI' : {'type' : 'string'} ,
-                        'Identifier' : {'type' : 'string'} ,
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['SSKKeypair']},
+                        'InsertURI' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                        'RequestURI' : {'type' : 'string' , 'required' : True, 'empty': False} ,
+                        'Identifier' : {'type' : 'string', 'required' : True, 'empty': False} ,
                         'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
         v_succ = Validator(schema_succ)
 
         if v_succ.validate(data):
-            private_key = data['InsertURI']
-            public_key = data['RequestURI']
-            identifier = data['Identifier']
-
-            if uri_type == 'SSK':
-                if name:
-                    public_key = '{0}{1}'.format(data['RequestURI'], name)
-                    private_key = '{0}{1}'.format(data['InsertURI'], name)
-                else :
-                    public_key = '{0}'.format(data['RequestURI'])
-                    private_key = '{0}'.format(data['InsertURI'])
-
-            elif uri_type == 'USK':
-                if name:
-                    public_key = '{0}{1}/0'.format(public_key, name)
-                    private_key = '{0}{1}/0'.format(private_key, name)
-                else:
-                    public_key = '{0}0'.format(public_key)
-                    private_key = '{0}0'.format(private_key)
-
-                public_key = public_key.replace('SSK', 'USK')
-                private_key = private_key.replace('SSK', 'USK')
-
-            elif uri_type == 'KSK':
-                if name:
-                    ksk = 'KSK@{0}-{1}'.format(get_a_uuid(5), name)
-                    return identifier, ksk
-
-                ksk = 'KSK@{0}'.format(get_a_uuid(5))
-                return identifier, ksk
-
-            return identifier, (public_key, private_key)
+            return data['Identifier']
 
         return False
 
@@ -2352,9 +2789,11 @@ class FromNodeToClient(object):
          {'header': 'PersistentGet', 'MaxRetries': '0', 'Started': 'false', 'PriorityClass': '2', 
          'Filename': '/usr/home/jamesaxl/Freenet/downloads/thing.ogg', 'Verbosity': '2147483647', 
          'ReturnType': 'disk', 
-         'URI': 'CHK@yebutzYYDIXbZ1SoIzynbjMy0IadBTshfXpDp22K0pA,BwXjATt750cekkxDSIG75iVFM8FVpNGNAcJRRKURHpE,AAMC--8/metal.ogg', 
+         'URI': 'CHK@something/metal.ogg', 
          'MaxSize': '9223372036854775807', 'Global': 'true', 'Persistence': 'forever', 'BinaryBlob': 
          'false', 'Identifier': 'JlMhQDLNTeWsVkK2Vlu8DQ', 'RealTime': 'false', 'footer': 'EndMessage'}
+
+
         '''
 
         schema_succ = {
@@ -2410,14 +2849,6 @@ class FromNodeToClient(object):
             return data['Identifier']
 
         return False
-
-    @staticmethod
-    def put_data_receive(data, identifier):
-        parsing_data_generator = parsing_data(data)
-
-        for item in parsing_data_generator:
-            if item.get('Identifier', None) == identifier:
-                yield item
 
     @staticmethod
     def persistent_put(data):
