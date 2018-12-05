@@ -141,6 +141,19 @@ class FchatPrv(object):
 
         logging.info('Update freechat config file')
 
+    def get_friends(self):
+        db_filename = Path(DB_FILENAME)
+        friends = []
+        with sqlite3.connect(str(db_filename)) as conn:
+            cursor  = conn.cursor()
+            cursor.execute(''' SELECT * FROM chat_key ; ''')
+            cursor_r = cursor.fetchall()
+            
+            for row in cursor_r:
+                friends.append(row[2])
+            
+            return friends
+
     def change_status(self, status):
         '''
         changing status using USK
