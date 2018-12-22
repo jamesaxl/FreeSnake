@@ -838,21 +838,18 @@ class FromClientToNode(object):
             persistence = 'forever'
 
         data = kw['data']
-        
+
         if isinstance(data, str):
             data_length = len(data.encode('utf-8'))
             put_d += 'DataLength={0}\n'.format(data_length)
             put_d += 'Data\n{0}\n'.format(data)
             return put_d.encode('utf-8'), identifier
 
-        elif isinstance(data, bytes):
-            data_length = len(data)
-            put_d += 'DataLength={0}\n'.format(data_length)
-            put_d = put_d.encode('utf-8')
-            put_d += b'Data\n%b\n' %data
-            return put_d, identifier
-
-        print(type(data))
+        data_length = len(data)
+        put_d += 'DataLength={0}\n'.format(data_length)
+        put_d = put_d.encode('utf-8')
+        put_d += b'Data\n%b\n' %data
+        return put_d, identifier
 
         
 
@@ -2855,37 +2852,42 @@ class FromNodeToClient(object):
         '''
         data received from Node after parsing:
 
-        {'header': 'PersistentPut', 'MaxRetries': '-1', 'Started': 'false', 
+        { 'header': 'PersistentPut', 'MaxRetries': '-1', 'Started': 'false', 
         'PriorityClass': '2', 'UploadFrom': 'direct', 'CompatibilityMode': 'COMPAT_1468',
-         'SplitfileCryptoKey': 'something', 
-         'Verbosity': '2147483647', 
-         'URI': 'USK@something', 
-         'Global': 'true', 'Persistence': 'forever', 
-         'Identifier': 'something', 
-         'PrivateURI': 'USK@something', 
-         'DataLength': '36', 'RealTime': 'true', 'DontCompress': 'true', 'Metadata.ContentType': 'application/octet-stream', 
-         'footer': 'EndMessage'}
+        'SplitfileCryptoKey': 'something', 
+        'Verbosity': '2147483647', 
+        'URI': 'USK@something', 
+        'Global': 'true', 'Persistence': 'forever', 
+        'Identifier': 'something', 
+        'PrivateURI': 'USK@something', 
+        'TargetFilename': 'something'
+        'DataLength': '36', 'RealTime': 'true', 'DontCompress': 'true', 'Metadata.ContentType': 'application/octet-stream', 
+        'footer': 'EndMessage' }
+        
         '''
+
         schema_succ = {
                         'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PersistentPut']},
-                        'MaxRetries' : {'type' : 'string'} ,
-                        'Started' : {'type' : 'string'} ,
-                        'PriorityClass' : {'type' : 'string'} ,
-                        'UploadFrom' : {'type' : 'string'} ,
-                        'CompatibilityMode' : {'type' : 'string'} ,
-                        'SplitfileCryptoKey' : {'type' : 'string'} ,
-                        'Verbosity' : {'type' : 'string'} ,
-                        'URI' : {'type' : 'string'} ,
-                        'Persistence' : {'type' : 'string'} ,
-                        'PrivateURI' : {'type' : 'string'} ,
-                        'DataLength' : {'type' : 'string'} ,
-                        'RealTime' : {'type' : 'string'} ,
-                        'DontCompress' : {'type' : 'string'} ,
-                        'Metadata.ContentType' : {'type' : 'string'} ,
-                        'Identifier' : {'type' : 'string'} ,
-                        'Global' : {'type' : 'string'} ,
+                        'MaxRetries' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Started' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PriorityClass' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'UploadFrom' : {'type' : 'string', 'required' : True, 'empty': False} ,
+                        'Filename' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'CompatibilityMode' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'SplitfileCryptoKey' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Verbosity' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'URI' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Persistence' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PrivateURI' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'DataLength' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'RealTime' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'DontCompress' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Metadata.ContentType' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'TargetFilename' : {'type' : 'string', 'required' : False, 'empty': False},
+                        'Identifier' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Global' : {'type' : 'string', 'required' : False, 'empty': False} ,
                         'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
-                      }
+                    }
 
         v_succ = Validator(schema_succ)
 

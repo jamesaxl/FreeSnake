@@ -7,7 +7,7 @@ import configparser
 from pathlib import Path, PurePosixPath
 from time import gmtime, strftime, localtime
 from datetime import datetime
- 
+
 try:
     from Fcp.Node import Node
 except ModuleNotFoundError:
@@ -20,6 +20,7 @@ import queue
 from urllib.parse import unquote
 
 from . import ChatTemplate_pb2
+from . import AddTemplate_pb2
 
 CONFIG_DIR = '{0}/.config/freesnake/freechat'.format(str(Path.home()))
 
@@ -32,11 +33,11 @@ DB_FILENAME = '{0}/freechat.db'.format(CONFIG_DIR)
 
 DB_SCHEMA = '''
 create table chat_key (
-    id                  integer primary key autoincrement not null,
-    owner               text,
-    friend              text unique,
-    create_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    get_message_key          text unique,
+    id                      integer primary key autoincrement not null,
+    owner                   text,
+    friend                  text unique,
+    create_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    get_message_key         text unique,
     put_message_key         text unique,
     friend_get_message_key  text unique,
     friend_get_status_key   text unique
@@ -96,7 +97,7 @@ class FchatPrv(object):
 
         # Queue for seding messages (message by message) for every user
         self.send_chat_queue = {}
-        
+
         #receive messages from users
         self.get_chat = {}
 
@@ -148,10 +149,10 @@ class FchatPrv(object):
             cursor  = conn.cursor()
             cursor.execute(''' SELECT * FROM chat_key ; ''')
             cursor_r = cursor.fetchall()
-            
+
             for row in cursor_r:
                 friends.append(row[2])
-            
+
             return friends
 
     def change_status(self, status):
@@ -164,7 +165,7 @@ class FchatPrv(object):
         config = configparser.ConfigParser()
         config.read(INFO_FILE)
         prv = config['STATUS']['PRV']
-        
+
         job = self.node.node_request.put_data( callback = self.change_status_callback, 
                             uri = prv,
                             ignore_usk_datehints = True,
@@ -178,7 +179,7 @@ class FchatPrv(object):
         but before cheking status of your friends 
         you should ask them for pub USK key
         '''
-        
+
         db_filename = Path(DB_FILENAME)
         owner = self.get_info()['OWNER']
 
@@ -193,7 +194,6 @@ class FchatPrv(object):
                                 uri = friend_get_status_key,
                                 priority_class = 1 , global_queue = True)
 
-
     def check_unread_message(self, friend):
         '''
         After connecting we should check the last version of USK in database
@@ -205,16 +205,16 @@ class FchatPrv(object):
 
     def generate_info(self, name):
 
-        owner = name + '@' + self.get_a_uuid(2)
+        owner = name + '@' + self.get_a_uuid(1)
 
         info_file = Path(INFO_FILE)
         pub, prv  = self.node.node_request.generate_keys( uri_type = 'USK', name = owner  + '.status' )
 
         config = configparser.ConfigParser()
         config['INFO'] = {      
-                                'OWNER' : owner,
-                                'PUB' : pub, 
-                                'PRV' : prv,
+                                'owner' : owner,
+                                'status_pub_key' : pub, 
+                                'status_prv_key' : prv,
                             }
 
         with open(str(info_file), 'w') as infofile:
@@ -234,41 +234,49 @@ class FchatPrv(object):
     def generate_key_for_friend(self):
         '''
         This function will return pub ( that you can give it to your friend )
-        and prv ( for sending message to your friend )
+        and prv ( for sending message to your friend ) and the last one is ksk
+        that have info about you not all info of course :).
         '''
-        owner = self.get_info()['OWNER']
+
+        owner = self.get_info()['owner']
+
+        status_pub_key = self.get_info()['status_pub_key']
+
         pub, prv  = self.node.node_request.generate_keys( uri_type = 'SSK', name = owner  + '.chat')
+        
+        ksk_key = self.node.node_request.generate_keys( uri_type = 'KSK' )
 
-        return pub, prv
+        add_friend_buf = AddTemplate_pb2.Message()
+        add_friend_buf.friend = owner
+        add_friend_buf.friend_get_message_key = pub
+        add_friend_buf.friend_get_status_key = status_pub_key
 
-    def add_friend(self, get_message_key, put_message_key, friend, friend_get_message_key, friend_get_status_key):
+        job = self.node.node_request.put_data( callback = self.create_ksk_callback, uri = ksk_key,
+                                     global_queue = True, persistence = 'forever',
+                                     priority_class = 1, dont_compress = True, 
+                                     data = add_friend_buf.SerializeToString(),
+                                     real_time_flag = True, 
+                                     extra_inserts_splitfile_header_block = 0 )
+
+        return pub, prv, ksk_key
+
+    def add_friend(self, get_message_key, put_message_key, ksk_friend_key):
         '''
-        - get_key: key for retrieving your message (you should give it to your friend)
-        - put_key: key for sending message that you generate before
+        - get_message_key: key for retrieving your message (you should give it to your friend)
+        - put_message_key: key for sending message that you generate before
         - friend: the nickname of your friend
-        - friend_message_key: pub key of your friend, you use for retrieving message of your friend
-        - friend_status_key: pub key of your friend, you can use it for cheking the status of your friend
+        - friend_get_message_key: pub key of your friend, you use for retrieving message of your friend
+        - friend_get_status_key: pub key of your friend, you can use it for cheking the status of your friend
 
         NOTE: All these things will be stored in database,
         '''
 
-        owner = self.get_info()['OWNER']
+        job = self.node.node_request.get_data( callback = self.get_ksk_callback,
+                                uri = ksk_friend_key,
+                                priority_class = 1 , global_queue = True)
 
-        if self.check_friend_duplicate(friend):
-
-            # function for duplicate gui
-
-            return
-
-        db_filename = Path(DB_FILENAME)
-        with sqlite3.connect(str(db_filename)) as conn:
-            conn.execute('''
-                insert into chat_key (owner, friend, 
-                get_message_key, put_message_key, friend_get_message_key, friend_get_status_key)
-                values (?, ?, ?, ?, ?, ?);''', ( owner, friend, get_message_key, put_message_key, 
-                                                 friend_get_message_key, friend_get_status_key ))
-
-            conn.commit()
+        self.current_get_message_key = get_message_key
+        self.current_put_message_key = put_message_key
 
     def check_friend_duplicate(self, friend):
         '''
@@ -318,6 +326,7 @@ class FchatPrv(object):
             chat_key = cursor.fetchone()
 
             get_message_key = chat_key[4]
+
             put_message_key = chat_key[5]
 
             send_at = strftime('%Y-%m-%dT%H:%M:%S', localtime())
@@ -396,9 +405,12 @@ class FchatPrv(object):
             if not self.get_chat.get(friend, False):
                 self.get_chat[friend] = uri_to_get
 
+            print(uri_to_get)
+
             job = self.node.node_request.get_data( callback = self.get_msg_callback,
                                 uri = uri_to_get,
                                 priority_class = 1 , global_queue = True)
+
 
 
     def send_msg_callback(self, event, result):
@@ -544,6 +556,64 @@ class FchatPrv(object):
 
         elif event == 'GetFaild':
             logging.info('transfert is faild please try again')
+
+        else:
+            logging.info('Event: {0}'.format(event))
+            # execute gui function
+
+    def create_ksk_callback(self, event, result):
+        if event == 'PutSuccessful':
+            # we should know which user
+            # execute gui function
+            # we will get just link
+            print(result['URI'])
+
+        elif event == 'PutFailed':
+            logging.error('Ksk key not create, please try again')
+
+        else:
+            logging.info('Event: {0}'.format(event))
+            # execute gui function
+
+    def get_ksk_callback(self, event, result):
+        if event == 'Data':
+            # execute gui function
+            add_buf = AddTemplate_pb2.Message()
+
+            add_message = result[0]
+
+            # must get the info of owner, get_message_key, put_message_key
+
+            try:
+                add_buf.ParseFromString(add_message)
+            except:
+                print('someone try to send you no supported msg')
+                return
+
+            if self.check_friend_duplicate(add_buf.friend):
+                # function for duplicate gui
+                print('{0} exists'.format(add_buf.friend))
+                return
+            
+            owner = self.get_info()['OWNER']
+
+            db_filename = Path(DB_FILENAME)
+            with sqlite3.connect(str(db_filename)) as conn:
+                conn.execute('''
+                    insert into chat_key (owner, friend, 
+                    get_message_key, put_message_key, friend_get_message_key, friend_get_status_key)
+                    values (?, ?, ?, ?, ?, ?);''', ( owner, add_buf.friend, self.current_get_message_key, self.current_put_message_key, 
+                                                     add_buf.friend_get_message_key, add_buf.friend_get_status_key ))
+
+                conn.commit()
+
+            print('{0} is added'.format(add_buf.friend))
+            print('{0} is added'.format(add_buf.friend_get_message_key))
+            print('{0} is added'.format(add_buf.friend_get_status_key))
+
+
+        elif event == 'GetFaild':
+            logging.error('can not get ksk, please try again')
 
         else:
             logging.info('Event: {0}'.format(event))

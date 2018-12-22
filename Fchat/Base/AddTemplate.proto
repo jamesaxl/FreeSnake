@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+package FreeChatAdd;
+
+message Message {
+  required string friend = 1;
+  required string friend_get_message_key = 2;
+  required string friend_get_status_key = 3;
+}

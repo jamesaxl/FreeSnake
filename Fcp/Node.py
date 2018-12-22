@@ -1185,12 +1185,9 @@ class Node(object):
                             logging.warning('Redirect to {}'.format(item['RedirectURI']))
 
                             job.message['uri'] = item['RedirectURI']
-                            
-                            #we should remove the old one
-                            #job.remove_from_queue_when_finish()
 
                             if job.message.get('filname', False):
-                                self.node.node_request.get_filename_uri_redirect(job)
+                                self.node.node_request.get_file_uri_redirect(job)
 
                             elif job.message.get('stream', False):
                                 self.node.node_request.get_stream_uri_redirect(job)
@@ -1202,6 +1199,9 @@ class Node(object):
                                 job.callback('RedirectURI', item['RedirectURI'])
 
                             time.sleep(2)
+
+                            #we should remove the old one
+                            self.node.node_request.remove_request(identifier)
 
                         else:
                             logging.error('Error: {0}'.format(item))
