@@ -1,7 +1,7 @@
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
-from ChatWidget import ChatWidget
+from .ChatWidget import ChatWidget
 
 STATUS = { 'online' : 0, 'away' : 1, 'offline' : 2 }
 
@@ -13,6 +13,7 @@ class FriendsList(Gtk.TreeView):
         self.chat_widget = ChatWidget(main_window, friends_widget)
 
         self.main_window = main_window
+        self.fchat_prv = friends_widget.fchat_prv
 
         self.liststore = Gtk.ListStore(str, str)
         self.set_model(self.liststore)
@@ -36,9 +37,8 @@ class FriendsList(Gtk.TreeView):
         self.connect('row-activated', self.on_double_click)
 
         self.get_model().set_sort_func(1, self.compare, None)
-
-        self.fill_friends_list('rose@nHZ_YUQdQRakGnHujHm_bgnHZ_YUQdQRakGnHujHm_bg', 'away')
-        self.fill_friends_list('jamesaxl@nHZ_YUQdQRakGnHujHm_bgnHZ_YUQdQRakGnHujHm_bg', 'online')
+        
+        self.sync_friends_list()
 
     def on_double_click(self, tree_view, path, column):
         treeiter = tree_view.get_model().get_iter(path)
@@ -51,6 +51,11 @@ class FriendsList(Gtk.TreeView):
         self.main_window.back_friend_list_bt.show()
 
         print('double click {}'.format(value))
+
+    def sync_friends_list(self):
+        friends = self.fchat_prv.get_friends()
+        for friend in friends:
+            self.fill_friends_list(friend, '')
 
     def fill_friends_list(self, friend, status):
         self.liststore.append([friend, status])

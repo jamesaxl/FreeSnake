@@ -2,8 +2,8 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
 
-from ChatView import ChatView
-from ChatEntry import ChatEntry
+from .ChatView import ChatView
+from .ChatEntry import ChatEntry
 
 class ChatWidget(Gtk.Notebook):
 

@@ -1,9 +1,11 @@
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gio, Gtk
-from WelcomeWidget import WelcomeWidget
-from FriendsWidget import FriendsWidget
-from AddFriendWidget import AddFriendWidget
+from .WelcomeWidget import WelcomeWidget
+from .FriendsWidget import FriendsWidget
+from .AddFriendWidget import AddFriendWidget
+from .ConfigdWidget import ConfigdWidget
+from .OwnerInfoWidget import OwnerInfoWidget
 import sys
 
 MENU_OFF = """
@@ -48,11 +50,12 @@ MENU_ON = """
             <attribute name="label">Add Friend</attribute>
             <attribute name="action">app.add_friend</attribute>
         </item>
-
+        
         <item>
-            <attribute name="label">Config</attribute>
-            <attribute name="action">app.config</attribute>
+            <attribute name="label">Owner Info</attribute>
+            <attribute name="action">app.owner_info</attribute>
         </item>
+        
         <item>
             <attribute name="label">About</attribute>
             <attribute name="action">app.about</attribute>
@@ -81,6 +84,8 @@ class MainWindow(Gtk.ApplicationWindow):
         self.header_bar.pack_start(self.back_friend_list_bt)
 
         self.set_titlebar(self.header_bar)
+
+        self.application = kwargs['application']
 
         self.menu_off()
 
@@ -114,6 +119,7 @@ class Application(Gtk.Application):
         self.welcome_widget = None
         self.friends_widget = None
         self.add_friend_widget = None
+        self.fchat_prv = None
 
     def do_startup(self):
         Gtk.Application.do_startup(self)
@@ -133,6 +139,10 @@ class Application(Gtk.Application):
         action = Gio.SimpleAction.new("config", None)
         action.connect("activate", self.on_config)
         self.add_action(action)
+        
+        action = Gio.SimpleAction.new("owner_info", None)
+        action.connect("activate", self.on_owner_info)
+        self.add_action(action)
 
         action = Gio.SimpleAction.new("about", None)
         action.connect("activate", self.on_about)
@@ -146,15 +156,18 @@ class Application(Gtk.Application):
         if not self.main_window:
             self.main_window = MainWindow(application=self)
             self.main_window.back_friend_list_bt.connect('clicked', self.back_friend_list)
-
             self.welcome_widget = WelcomeWidget()
+            self.config_widget = ConfigdWidget(self.main_window, self.fchat_prv)
             self.main_window.add(self.welcome_widget)
             self.welcome_widget.show_all()
+
         self.main_window.present()
 
     def on_connect(self, action, parameter):
-        self.friends_widget = FriendsWidget(self.main_window)
-        self.add_friend_widget = AddFriendWidget()
+        self.friends_widget = FriendsWidget(self.main_window, self.fchat_prv)
+        self.owner_info_widget = OwnerInfoWidget(self.main_window, self.fchat_prv)
+        self.add_friend_widget = AddFriendWidget(self.main_window, 
+                                                self.fchat_prv, self.friends_widget.friend_list)
         self.main_window.remove(self.main_window.get_children()[0])
         self.main_window.add(self.friends_widget)
         self.friends_widget.show_all()
@@ -162,14 +175,13 @@ class Application(Gtk.Application):
         self.main_window.header_bar.remove(self.main_window.header_bar.get_children()[-1])
 
         self.main_window.menu_on()
-
+        self.fchat_prv.connect()
         print('connect')
 
     def on_add_friend(self, action, parameter):
         self.main_window.remove(self.main_window.get_children()[0])
         self.main_window.add(self.add_friend_widget)
         self.add_friend_widget.show_all()
-        self.main_window.back_friend_list_bt.show()
         print('Add Friend')
 
     def on_disconnect(self, action, parameter):
@@ -180,10 +192,22 @@ class Application(Gtk.Application):
         self.main_window.header_bar.remove(self.main_window.header_bar.get_children()[-1])
 
         self.main_window.menu_off()
+        self.fchat_prv.disconnect()
         print('disconnect')
 
     def on_config(self, action, parameter):
+        self.main_window.remove(self.main_window.get_children()[0])
+        self.main_window.add(self.config_widget)
+        self.config_widget.show_all()
+        self.config_widget.get_config()
         print('config')
+        
+    def on_owner_info(self, action, parameter):
+        self.main_window.remove(self.main_window.get_children()[0])
+        self.main_window.add(self.owner_info_widget)
+        self.owner_info_widget.show_all()
+        self.owner_info_widget.get_info()
+        print('owner info')
 
     def on_about(self, action, parameter):
         about_dialog = Gtk.AboutDialog(transient_for=self.main_window, modal=True)
@@ -204,11 +228,18 @@ class Application(Gtk.Application):
         self.main_window.add(self.friends_widget)
         button.hide()
 
+    def back_main_window_or_friend_list(self):
+        self.main_window.remove(self.main_window.get_children()[0])
+        if self.fchat_prv.node.connected:
+            self.main_window.add(self.friends_widget)
+        else:
+            self.main_window.add(self.welcome_widget)
+
     def on_close(self, action, parameter):
         action.destroy()
 
     def on_quit(self, action, param):
+        if self.fchat_prv.node.connected:
+            self.fchat_prv.disconnect()
         self.quit()
 
-app = Application()
-app.run(sys.argv)

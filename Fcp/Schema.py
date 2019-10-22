@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 
+'''
+FCP API in Python created by James Axl 2018
+
+For FCP documentation, see http://wiki.freenetproject.org/FCPv2 still under construction
+'''
+
 try:
     import cerberus
     from cerberus import Validator
@@ -180,12 +186,12 @@ class FromClientToNode(object):
                 raise FileNotFoundError('File not found: {0}'.format(file_path))
 
         trust = kw['trust']
-        add_peer_from_f = 'Trust={0}\n'.format(trust)
+        add_peer_from_f += 'Trust={0}\n'.format(trust)
 
         visibility = kw['visibility']
-        add_peer_from_f = 'Visibility={0}\n'.format(visibility)
+        add_peer_from_f += 'Visibility={0}\n'.format(visibility)
 
-        add_peer_from_f = 'File={0}\n'.format(file_path)
+        add_peer_from_f += 'File={0}\n'.format(file_path)
 
         add_peer_from_f += 'EndMessage\n'
 
@@ -215,13 +221,13 @@ class FromClientToNode(object):
             raise Exception(v_succ.errors)
 
         trust = kw['trust']
-        add_peer_from_u = 'Trust={0}\n'.format(trust)
+        add_peer_from_u += 'Trust={0}\n'.format(trust)
 
         visibility = kw['visibility']
-        add_peer_from_u = 'Visibility={0}\n'.format(visibility)
+        add_peer_from_u += 'Visibility={0}\n'.format(visibility)
 
         url = kw['url']
-        add_peer_from_u = 'URL={0}\n'.format(url)
+        add_peer_from_u += 'URL={0}\n'.format(url)
 
         add_peer_from_u += 'EndMessage\n'
 
@@ -269,40 +275,40 @@ class FromClientToNode(object):
             raise Exception(v_succ.errors)
 
         trust = kw['trust']
-        add_peer_from_d = 'Trust={0}\n'.format(trust)
+        add_peer_from_d += 'Trust={0}\n'.format(trust)
 
         visibility = kw['visibility']
-        add_peer_from_d = 'Visibility={0}\n'.format(visibility)
+        add_peer_from_d += 'Visibility={0}\n'.format(visibility)
 
         physical_udp = kw['physical_udp']
-        add_peer_from_d = 'physical.udp={0}\n'.format(physical_udp)
+        add_peer_from_d += 'physical.udp={0}\n'.format(physical_udp)
         
         last_good_version = kw['last_good_version']
-        add_peer_from_d = 'lastGoodVersion={0}\n'.format(last_good_version)
+        add_peer_from_d += 'lastGoodVersion={0}\n'.format(last_good_version)
 
         ark_pub_url = kw['ark_pub_url']
-        add_peer_from_d = 'ark.pubURI={0}\n'.format(ark_pub_url)
+        add_peer_from_d += 'ark.pubURI={0}\n'.format(ark_pub_url)
 
         ark_number = kw['ark_number']
-        add_peer_from_d = 'ark.number={0}\n'.format(ark_number)
+        add_peer_from_d += 'ark.number={0}\n'.format(ark_number)
 
         identity = kw['identity']
-        add_peer_from_d = 'identity={0}\n'.format(identity)
+        add_peer_from_d += 'identity={0}\n'.format(identity)
 
         my_name = kw['my_name']
-        add_peer_from_d = 'myName={0}\n'.format(my_name)
+        add_peer_from_d += 'myName={0}\n'.format(my_name)
 
         base64 = kw.get('base64', False)
-        add_peer_from_d = 'base64={0}\n'.format(base64)
+        add_peer_from_d += 'base64={0}\n'.format(base64)
 
         location = kw['location']
-        add_peer_from_d = 'location={0}\n'.format(location)
+        add_peer_from_d += 'location={0}\n'.format(location)
 
         test_net = kw.get('test_net', False)
-        add_peer_from_d = 'testnet={0}\n'.format(test_net)
+        add_peer_from_d += 'testnet={0}\n'.format(test_net)
 
         version = kw['version']
-        add_peer_from_d = 'URL={0}\n'.format(version)
+        add_peer_from_d += 'URL={0}\n'.format(version)
 
         add_peer_from_d += 'EndMessage\n'
 
@@ -338,22 +344,22 @@ class FromClientToNode(object):
             raise Exception(v_succ.errors)
 
         node_identifier = kw['node_identifier']
-        modify_p = 'NodeIdentifier={0}\n'.format(node_identifier)
+        modify_p += 'NodeIdentifier={0}\n'.format(node_identifier)
 
         allow_local_addresses = kw['allow_local_addresses']
-        modify_p = 'AllowLocalAddresses={0}\n'.format(allow_local_addresses)
+        modify_p += 'AllowLocalAddresses={0}\n'.format(allow_local_addresses)
 
         is_disabled = kw['is_disabled']
-        modify_p = 'IsDisabled={0}\n'.format(is_disabled)
+        modify_p += 'IsDisabled={0}\n'.format(is_disabled)
 
         is_listen_only = kw['is_listen_only']
-        modify_p = 'IsListenOnly={0}\n'.format(is_listen_only)
+        modify_p += 'IsListenOnly={0}\n'.format(is_listen_only)
 
         is_burst_only = kw['is_burst_only']
-        modify_p = 'IsBurstOnly={0}\n'.format(is_burst_only)
+        modify_p += 'IsBurstOnly={0}\n'.format(is_burst_only)
 
         ignore_source_port = kw['ignore_source_port']
-        modify_p = 'IgnoreSourcePort={0}\n'.format(ignore_source_port)
+        modify_p += 'IgnoreSourcePort={0}\n'.format(ignore_source_port)
 
         modify_p += 'EndMessage\n'
 
@@ -371,9 +377,8 @@ class FromClientToNode(object):
         remove_p = 'RemovePeer\n'
 
         schema_succ = {
-                        'node_identifier' : {'type' : 'string', 'required': True, 'empty': False,},
-
-                        }
+                          'node_identifier' : {'type' : 'string', 'required': True, 'empty': False},
+                      }
 
         v_succ = Validator(schema_succ)
 
@@ -381,7 +386,7 @@ class FromClientToNode(object):
             raise Exception(v_succ.errors)
 
         node_identifier = kw['node_identifier']
-        remove_p = 'NodeIdentifier={0}\n'.format(node_identifier)
+        remove_p += 'NodeIdentifier={0}\n'.format(node_identifier)
 
         remove_p += 'EndMessage\n'
 
@@ -411,15 +416,15 @@ class FromClientToNode(object):
 
         give_opennet_ref = kw.get('give_opennet_ref', False)
         if give_opennet_ref:
-            get_n = 'WithPrivate={0}\n'.format(give_opennet_ref)
+            get_n += 'WithPrivate={0}\n'.format(give_opennet_ref)
 
         with_private = kw.get('with_private', False)
         if with_private:
-            get_n = 'WithPrivate={0}\n'.format(with_private)
+            get_n += 'WithPrivate={0}\n'.format(with_private)
         
         with_volatile = kw.get('with_volatile', False)
         if with_volatile:
-            get_n = 'WithVolatile={0}\n'.format(with_volatile)
+            get_n += 'WithVolatile={0}\n'.format(with_volatile)
 
         get_n += 'EndMessage\n'
 
@@ -427,9 +432,67 @@ class FromClientToNode(object):
 
     def get_config(**kw):
         '''
-        under construction
+        GetConfig
+        withCurrent = false
+		withDefaults = false
+		withSortOrder = false
+		withExpertFlag = false
+		withForceWriteFlag = false
+		withShortDescription = false
+		withLongDescription = false
+		withDataTypes = false
+        EndMessage
         '''
-        pass
+        
+        get_conf = 'GetConfig\n'
+
+        schema_succ = {
+                        'with_current' : {'type' : 'boolean', 'required': False, 'empty': False},
+                        'with_defaults' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'with_sort_order' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'with_expert_flag' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'with_force_write_flag' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'with_short_description' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'with_long_description' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        'with_data_types' : {'type' : 'boolean', 'required': False, 'empty': False,},
+                        }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        with_current = kw.get('with_current', False)
+        if with_current:
+            get_conf += 'withCurrent={0}\n'.format(with_current)
+
+        with_defaults = kw.get('with_defaults', False)
+        if with_defaults:
+            get_conf += 'withDefaults={0}\n'.format(with_defaults)
+        
+        with_sort_order = kw.get('with_sort_order', False)
+        if with_sort_order:
+            get_conf += 'withSortOrder={0}\n'.format(with_sort_order)
+        
+        with_expert_flag = kw.get('with_expert_flag', False)
+        if with_expert_flag:
+            get_conf += 'withExpertFlag={0}\n'.format(with_expert_flag)
+        
+        with_force_write_flag = kw.get('with_force_write_flag', False)
+        if with_force_write_flag:
+            get_conf += 'withForceWriteFlag={0}\n'.format(with_force_write_flag)
+        
+        with_short_description = kw.get('with_short_description', False)
+        if with_short_description:
+            get_conf += 'withShortDescription={0}\n'.format(with_short_description)
+        
+        with_data_types = kw.get('with_data_types', False)
+        if with_data_types:
+            get_conf += 'withDataTypes={0}\n'.format(with_data_types)
+
+        get_conf += 'EndMessage\n'
+
+        return get_conf.encode('utf-8')
 
     def modify_config(**kw):
         '''
@@ -452,10 +515,10 @@ class FromClientToNode(object):
 
         schema_succ = {
                         'plugin_url' : {'type' : 'string', 'required': True, 'empty': False,},
-                        'url_type' : {'type' : 'string', 'required': False, 'empty': False,},
-                        'store' : {'type' : 'string', 'required': False, 'empty': False,},
-                        'source' : {'type' : 'string', 'required': False, 'empty': False,},
-                        }
+                        'url_type' : {'type' : 'string', 'required': True, 'empty': False,},
+                        'store' : {'type' : 'string', 'required': True, 'empty': False,},
+                        'source' : {'type' : 'string', 'required': True, 'empty': False,},
+                      }
 
         v_succ = Validator(schema_succ)
 
@@ -463,19 +526,19 @@ class FromClientToNode(object):
             raise Exception(v_succ.errors)
 
         identifier = get_a_uuid()
-        load_plg = 'Identifier={0}\n'.format(identifier)
+        load_plg += 'Identifier={0}\n'.format(identifier)
 
         plugin_url = kw['plugin_url']
-        load_plg = 'PluginURL={0}\n'.format(plugin_url)
+        load_plg += 'PluginURL={0}\n'.format(plugin_url)
 
         url_type = kw['url_type']
-        load_plg = 'URLType={0}\n'.format(url_type)
+        load_plg += 'URLType={0}\n'.format(url_type)
 
         store = kw['store']
-        load_plg = 'Store={0}\n'.format(store)
+        load_plg += 'Store={0}\n'.format(store)
 
         source = kw['source']
-        load_plg = 'Source={0}\n'.format(source)
+        load_plg += 'Source={0}\n'.format(source)
 
         load_plg += 'EndMessage\n'
 
@@ -483,9 +546,47 @@ class FromClientToNode(object):
 
     def reload_plugin(**kw):
         '''
-        under construction
+        ReloadPlugin
+        Identifier=moohmeep
+        PluginName=HelloWorld
+        MaxWaitTime=2
+        Purge=true
+        Store=false
+        EndMessage
         '''
-        pass
+
+        reload_plg = 'LoadPlugin\n'
+
+        schema_succ = {
+                        'plugin_name' : {'type' : 'string', 'required': True, 'empty': False,},
+                        'max_wait_time' : {'type' : 'string', 'required': True, 'empty': False,},
+                        'purge' : {'type' : 'string', 'required': True, 'empty': False,},
+                        'store' : {'type' : 'string', 'required': True, 'empty': False,},
+                      }
+
+        v_succ = Validator(schema_succ)
+
+        if not v_succ.validate(kw):
+            raise Exception(v_succ.errors)
+
+        identifier = get_a_uuid()
+        reload_plg = 'Identifier={0}\n'.format(identifier)
+
+        plugin_name = kw['plugin_name']
+        reload_plg = 'PluginName={0}\n'.format(plugin_name)
+
+        max_wait_time = kw['max_wait_time']
+        reload_plg = 'MaxWaitTime={0}\n'.format(url_type)
+
+        store = kw['store']
+        reload_plg = 'Store={0}\n'.format(store)
+
+        purge = kw['purge']
+        reload_plg = 'Purge={0}\n'.format(source)
+
+        reload_plg += 'EndMessage\n'
+
+        return load_plg.encode('utf-8')
 
     def remove_plugin(**kw):
         '''
@@ -504,7 +605,7 @@ class FromClientToNode(object):
         under construction
         '''
         pass
-    
+
     def watch_feeds (**kw):
         '''
         under construction
@@ -529,7 +630,7 @@ class FromClientToNode(object):
         Global: Boolean (default=false)\n
         OnlyData: boolean (default=false)\n
         '''
-        get_request_s = 'LoadPlugin\n'
+        get_request_s = 'GetRequestStatus\n'
 
         schema_succ = {
                         'identifier' : {'type' : 'string', 'required': True, 'empty': False,},
@@ -543,13 +644,13 @@ class FromClientToNode(object):
             raise Exception(v_succ.errors)
 
         identifier = kw['identifier']
-        get_request_s = 'Identifier={0}\n'.format(identifier)
+        get_request_s += 'Identifier={0}\n'.format(identifier)
 
         global_queue = kw.get('global_queue', False)
-        get_request_s = 'Global={0}\n'.format(global_queue)
+        get_request_s += 'Global={0}\n'.format(global_queue)
 
         only_data = kw.get('only_data', False)
-        get_request_s = 'OnlyData={0}\n'.format(only_data)
+        get_request_s += 'OnlyData={0}\n'.format(only_data)
 
         get_request_s += 'EndMessage\n'
 
@@ -854,7 +955,7 @@ class FromClientToNode(object):
         
 
     @staticmethod
-    def put_file(node_identifier, **kw):
+    def put_file(node_identifier, compression_codecs, **kw):
         '''
         ClientPut\n
         URI=something\n
@@ -882,6 +983,7 @@ class FromClientToNode(object):
 
         keywords:
         - uri
+        - identifier
         - metadata_content_type
         - verbosity
         - max_retries
@@ -932,6 +1034,7 @@ class FromClientToNode(object):
 
         schema_succ =   {
                         'uri': {'type' : 'string', 'required': True, 'empty': False},
+                        'identifier': {'type' : 'string', 'required': False},
                         'verbosity' : {'type' : 'integer' , 'required': False} ,
                         'max_retries' : {'type' : 'integer', 'required': False, 'allowed': range(-1, 999999)} ,
                         'priority_class' : {'type' : 'integer', 'allowed': [0, 1, 2, 3, 4, 5, 6], 'required': False} ,
@@ -963,12 +1066,15 @@ class FromClientToNode(object):
         uri = kw.get('uri')
         put_f += 'URI={0}\n'.format(uri)
         
-        identifier = get_a_uuid()
+        identifier = kw.get('identifier')
+        if not identifier:
+            identifier = get_a_uuid()
+
         put_f += 'Identifier={0}\n'.format(identifier)
 
         file_path = kw.get('file_path')
         if not PosixPath(file_path).exists():
-                raise FileNotFoundError('File not found: {0}'.format(file_path))
+            raise FileNotFoundError('File not found: {0}'.format(file_path))
 
         put_f += 'Filename={0}\n'.format(file_path)
 
@@ -1267,6 +1373,7 @@ class FromClientToNode(object):
 
         keywords:
         - uri
+        - identifier
         - verbosity
         - max_retries
         - priority_class
@@ -1287,6 +1394,7 @@ class FromClientToNode(object):
         - real_time_flag
         - metadata_threshold
         - directory
+        - manifest_files - it is used for uploading website
         - site_name
         - default_name: Default index, e.g index.html if you set name 
                         of file that not exists in directory you are going to have an exception
@@ -1300,6 +1408,7 @@ class FromClientToNode(object):
         schema_succ =   {
 
                         'uri': {'type' : 'string', 'required': True, 'empty': False},
+                        'identifier': {'type' : 'string', 'required': False, 'empty': False},
                         'verbosity' : {'type' : 'integer' , 'required': False} ,
                         'max_retries' : {'type' : 'integer', 'required': False, 'allowed': range(-1, 999999)} ,
                         'priority_class' : {'type' : 'integer', 'allowed': [0, 1, 2, 3, 4, 5, 6], 'required': False} ,
@@ -1321,6 +1430,7 @@ class FromClientToNode(object):
                         'metadata_threshold' : {'type' : 'integer', 'required': False} ,
                         'default_name' : {'type' : 'string', 'required': False} ,
                         'directory' : {'type' : 'string', 'required': True, 'empty': False} ,
+                        'manifest_files' : {'type' : 'list', 'required': False} ,
                         'site_name' : {'type' : 'string', 'required': False, 'empty': False} ,
                     }
 
@@ -1332,7 +1442,7 @@ class FromClientToNode(object):
         directory = kw['directory']
 
         if not PosixPath('{0}/{1}'.format(directory, default_name)).exists():
-            raise FileNotFoundError('File not found: {0}'.format(default_name))
+            raise FileNotFoundError('{0} is not found in {1}'.format(default_name, directory))
 
         site_name = kw.get('kw', False)
 
@@ -1340,7 +1450,10 @@ class FromClientToNode(object):
 
         put_directory_f += 'URI={0}\n'.format(uri)
 
-        identifier = get_a_uuid()
+        identifier = kw.get('identifier', False)
+        if not identifier:
+            identifier = get_a_uuid()
+
         put_directory_f += 'Identifier={0}\n'.format(identifier)
 
         verbosity = kw.get('verbosity', 0)
@@ -1405,7 +1518,9 @@ class FromClientToNode(object):
 
         local_request_only = kw.get('local_request_only', False)
         put_directory_f += 'LocalRequestOnly ={0}\n'.format(local_request_only)
-
+        
+        put_directory_f += 'DefaultName={0}\n'.format(default_name)
+        
         override_splitfile_crypto_key = kw.get('override_splitfile_crypto_key', None)
         if override_splitfile_crypto_key != None:
             put_directory_f += 'OverrideSplitfileCryptoKey ={0}\n'.format(override_splitfile_crypto_key)
@@ -1418,26 +1533,38 @@ class FromClientToNode(object):
 
         # We should do our job
 
-
         if not PosixPath(directory).exists():
                 raise FileNotFoundError('directory not found: {0}'.format(directory))
 
-        files = list(Path(directory).glob('*'))
-        for index, file in enumerate(files):
-            if Path(file).is_dir():
-                raise Exception('{0} is a sub-folder'.format(file))
+        manifest_files = kw.get('manifest_files', False)
 
-            put_directory_f += 'Files.{0}.Name={1}\n'.format(index, str(file.name))
-            put_directory_f += 'Files.{0}.UploadFrom=disk\n'.format(index)
-            put_directory_f += 'Files.{0}.Filename={1}\n'.format(index, file)
-            put_directory_f += 'Files.{0}.Metadata.ContentType={1}\n'.format(index, magic.from_file(str(file), mime=True))
+        if not manifest_files:
+            files = list(Path(directory).glob('*'))
+            for index, _file in enumerate(files):
+                if Path(_file).is_dir():
+                    raise Exception('{0} is a sub-folder'.format(_file))
+
+                put_directory_f += 'Files.{0}.Name={1}\n'.format(index, _file.name)
+                put_directory_f += 'Files.{0}.UploadFrom=disk\n'.format(index)
+                put_directory_f += 'Files.{0}.Filename={1}\n'.format(index, _file.as_posix())
+                put_directory_f += 'Files.{0}.Metadata.ContentType={1}\n'.format(index, magic.from_file(_file.as_posix(), mime=True))
+        else:
+            files = manifest_files
+            for index, _file in enumerate(files):
+                if Path(_file['path']).is_dir():
+                    raise Exception('{0} is a sub-folder'.format(_file))
+
+                put_directory_f += 'Files.{0}.Name={1}\n'.format(index, _file['name'])
+                put_directory_f += 'Files.{0}.UploadFrom=disk\n'.format(index)
+                put_directory_f += 'Files.{0}.Filename={1}\n'.format(index, _file['path'])
+                put_directory_f += 'Files.{0}.Metadata.ContentType={1}\n'.format(index, _file['metadata_content_type'])
 
         put_directory_f += 'EndMessage\n'
         return put_directory_f.encode('utf-8'), identifier
 
     @staticmethod
-    def put_complex_directory_redirect(**kw):
-        ''' 
+    def put_complex_directory_redirect(compression_codecs, **kw):
+        '''
         ClientPutComplexDir\n
         URI=something\n
         Identifier=something\n
@@ -1481,7 +1608,7 @@ class FromClientToNode(object):
         - override_splitfile_crypto_key
         - real_time_flag
         - metadata_threshold
-        - target_uri_list: {name : 'Arnebab', uri : 'SSK@somehing', 'Linus' : 'CHK@something'}
+        - target_uri_list: {name : 'Arnebab', uri : 'CHK@something'}
         - site_name
         - default_name: Default index, e.g index.html if you set name 
                         of file that not exists in directory you are going to have an exception
@@ -1567,7 +1694,7 @@ class FromClientToNode(object):
         if not dont_compress:
             codecs = kw.get('codecs', None)
             if not codecs:
-                codecs = 'list of codes'
+                codecs = compression_codecs
                 put_directory_r += 'Codecs={0}\n'.format(codecs)
 
         client_token = kw.get('client_token', None)
@@ -1608,6 +1735,9 @@ class FromClientToNode(object):
 
         local_request_only = kw.get('local_request_only', False)
         put_directory_r += 'LocalRequestOnly={0}\n'.format(local_request_only)
+        
+        default_name = kw.get('default_name', False)
+        put_directory_r += 'DefaultName={0}\n'.format(default_name)
 
         override_splitfile_crypto_key = kw.get('override_splitfile_crypto_key', None)
         if override_splitfile_crypto_key != None:
@@ -1630,7 +1760,7 @@ class FromClientToNode(object):
         return put_directory_r.encode('utf-8'), identifier
 
     @staticmethod
-    def put_complex_directory_data(**kw):
+    def put_complex_directory_data(compression_codecs, **kw):
         ''' 
         ClientPutComplexDir\n
         URI=something\n
@@ -1648,6 +1778,7 @@ class FromClientToNode(object):
         Files.N.UploadFrom=direct\n
         Files.N.DataLength=length_of_every_data\n
         EndMessage\n
+        Data
 
         ##########
 
@@ -1683,7 +1814,6 @@ class FromClientToNode(object):
         put_directory_d = 'ClientPutComplexDir\n'
 
         schema_succ =   {
-
                         'uri': {'type' : 'string', 'required': True, 'empty': False},
                         'verbosity' : {'type' : 'integer' , 'required': False} ,
                         'max_retries' : {'type' : 'integer', 'required': False, 'allowed': range(-1, 999999)} ,
@@ -1704,30 +1834,21 @@ class FromClientToNode(object):
                         'override_splitfile_crypto_key' : {'type' : 'string', 'required': False} ,
                         'real_time_flag' : {'type' : 'boolean', 'required': False} ,
                         'metadata_threshold' : {'type' : 'integer', 'required': False} ,
-                        'default_name' : {'type' : 'string', 'required': False} ,
+                        'default_name' : {'type' : 'string', 'required': True, 'empty': False} ,
                         'site_name' : {'type' : 'string', 'required': True, 'empty': False} ,
-                        'directory' : {'type' : 'string', 'required': True, 'empty': False} ,
-                    }
-
+                        'data_list' : {'type' : 'list', 'required': True, 'empty': False} ,
+                        }
 
         v_succ = Validator(schema_succ)
 
         if not v_succ.validate(kw):
             raise Exception(v_succ.errors)
-
-        directory = kw['directory']
+        
         default_name = kw['default_name']
-
-        if not PosixPath(directory).exists():
-                raise FileNotFoundError('directory not found: {0}'.format(directory))
-
-        files = list(Path(directory).glob('*'))
-        for index, file in enumerate(files):
-            if Path(file).is_dir():
-                raise Exception('{0} is a sub-folder'.format(file))
-
-        if not PosixPath('{0}/{1}'.format(directory, default_name)).exists():
-            raise FileNotFoundError('File not found: {0}'.format(default_name))
+        data_list = kw['data_list']
+        
+        if not next(item for item in data_list if item["name"] == default_name):
+            raise FileNotFoundError('DefaultFile: {0} not found in data_list'.format(default_name))
 
         site_name = kw['site_name']
 
@@ -1759,7 +1880,7 @@ class FromClientToNode(object):
         if not dont_compress:
             codecs = kw.get('codecs', None)
             if not codecs:
-                codecs = 'list of codes'
+                codecs = compression_codecs
                 put_directory_d += 'Codecs={0}\n'.format(codecs)
 
         client_token = kw.get('client_token', None)
@@ -1811,27 +1932,28 @@ class FromClientToNode(object):
         metadata_threshold = kw.get('metadata_threshold', -1)
         put_directory_d += 'MetadataThreshold={0}\n'.format(metadata_threshold)
 
+        put_directory_d += 'DefaultName={0}\n'.format(default_name)
+
         # We should do our job
-        files = list(Path(directory).glob('*'))
-        data = []
-        for index, file in enumerate(files):
-            if Path(file).is_dir():
-                raise Exception('{0} is a sub-folder'.format(file))
-            
-            f = open(str(file), 'rb').read()
-            data.append(f)
-
-            put_directory_d += 'Files.{0}.Name={1}\n'.format(index, str(file.name))
+        data_to_send = []
+        for index, data in enumerate(data_list):
+            put_directory_d += 'Files.{0}.Name={1}\n'.format(index, data['name'])
             put_directory_d += 'Files.{0}.UploadFrom=direct\n'.format(index)
-            put_directory_d += 'Files.{0}.Filename={1}\n'.format(index, file)
-            put_directory_d += 'Files.{0}.DataLength={1}\n'.format(index, str(file.stat().st_size))
-            put_directory_d += 'Files.{0}.Metadata.ContentType={1}\n'.format(index, magic.from_file(str(file), mime=True))
+            put_directory_d += 'Files.{0}.DataLength={1}\n'.format(index, len(data['content']))
+            put_directory_d += 'Files.{0}.Metadata.ContentType={1}\n'.format(index, magic.from_buffer(data['content'], mime=True))
             
+            if isinstance(data['content'], bytes):
+                data_to_send.append(data['content'])
+            else:
+                data_to_send.append(data['content'].encode('utf-8'))
 
-        put_directory_d += 'Data\n'
+        put_directory_d += 'EndMessage\n'
 
         put_directory_d = put_directory_d.encode('utf-8')
-        put_directory_d += b''.join(data)
+        
+        put_directory_d += b''.join(data_to_send)
+        
+        put_directory_d += b'\n';
 
         return put_directory_d, identifier
 
@@ -2260,7 +2382,7 @@ class FromClientToNode(object):
         get_data += 'ReturnType=direct\n'
 
         filter_data = kw.get('filter_data', False)
-        get_data += 'FilterData=false\n'
+        get_data += 'FilterData={0}\n'.format(filter_data)
 
         get_data += 'EndMessage\n'
 
@@ -2597,7 +2719,7 @@ class FromNodeToClient(object):
         '''
 
         schema_succ = {
-                    'header': {'type' : 'string',  'required' : True, 'empty': False, 'allowed': ['Peer']},
+                    'header': {'type' : 'string',  'required' : False, 'empty': False, 'allowed': ['Peer']},
                     'totalOutput' : {'type' : 'string', 'required' : True, 'empty': False} ,
                     'seed' : {'type' : 'string', 'required' : True, 'empty': False} ,
                     'identity' : {'type' : 'string', 'required' : True, 'empty': False} ,
@@ -2730,14 +2852,20 @@ class FromNodeToClient(object):
         'WriteFilename' : '/tmp/testw.tmp'
         'ContentToWrite' : 'RANDOM'
         'footer' : 'EndMessage' }
+        
+         {'header': 'TestDDAReply', 
+          'ReadFilename': '/home/ubuntu/Hacking/IPFS/DDACheck-8463328195526775055.tmp', 
+          'Directory': '/home/ubuntu/Hacking/IPFS', 
+          'footer': 'EndMessage'}
+        
         '''
         
         schema_succ = {
                         'header': {'type' : 'string',  'required' : True, 'empty': False, 'allowed': ['TestDDAReply']},
-                        'Directory' : {'type' : 'string'} ,
-                        'ReadFilename' : {'type' : 'string'} ,
-                        'WriteFilename' : {'type' : 'string'} ,
-                        'ContentToWrite' : {'type' : 'string'} ,
+                        'Directory' : {'type' : 'string' ,'required' : False, 'empty': False}  ,
+                        'ReadFilename' : {'type' : 'string' ,'required' : False, 'empty': False}  ,
+                        'WriteFilename' : {'type' : 'string' ,'required' : False, 'empty': False}  ,
+                        'ContentToWrite' : {'type' : 'string' ,'required' : False, 'empty': False}  ,
                         'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
@@ -2751,8 +2879,10 @@ class FromNodeToClient(object):
     @staticmethod
     def test_dda_complete(data):
         '''
-         {'header': 'TestDDAComplete', 'ReadDirectoryAllowed': 'true', 
-         'Directory': '/usr/home/jamesaxl/Music/site_test', 'footer': 'EndMessage'}
+         {'header': 'TestDDAComplete', 
+          'ReadDirectoryAllowed': 'true', 
+          'Directory': '/usr/home/jamesaxl/Music/site_test', 
+          'footer': 'EndMessage'}
         '''
 
         schema_succ = {
@@ -2760,7 +2890,7 @@ class FromNodeToClient(object):
                         'Directory' : {'type' : 'string' , 'required' : True, 'empty': False} ,
                         'ReadDirectoryAllowed' : {'type' : 'string' ,'required' : False, 'empty': False} ,
                         'WriteDirectoryAllowed' : {'type' : 'string' ,'required' : False, 'empty': False} ,
-                        'ContentToWrite' : {'type' : 'string'} ,
+                        'ContentToWrite' : {'type' : 'string' ,'required' : False, 'empty': False} ,
                         'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
@@ -2851,25 +2981,32 @@ class FromNodeToClient(object):
     def persistent_put(data):
         '''
         data received from Node after parsing:
-
-        { 'header': 'PersistentPut', 'MaxRetries': '-1', 'Started': 'false', 
-        'PriorityClass': '2', 'UploadFrom': 'direct', 'CompatibilityMode': 'COMPAT_1468',
-        'SplitfileCryptoKey': 'something', 
-        'Verbosity': '2147483647', 
-        'URI': 'USK@something', 
-        'Global': 'true', 'Persistence': 'forever', 
-        'Identifier': 'something', 
-        'PrivateURI': 'USK@something', 
-        'TargetFilename': 'something'
-        'DataLength': '36', 'RealTime': 'true', 'DontCompress': 'true', 'Metadata.ContentType': 'application/octet-stream', 
-        'footer': 'EndMessage' }
         
+         {'header': 'PersistentPut', 
+         'MaxRetries': '-1', 
+         'Started': 'false', 
+         'Codecs': 'GZIP, BZIP2, LZMA, LZMA_NEW', 
+         'PriorityClass': '2', 
+         'UploadFrom': 'direct', 
+         'CompatibilityMode': 'COMPAT_1468', 
+         'Verbosity': '2147483647', 
+         'URI': 'CHK@', 
+         'Global': 'true',
+          'Persistence': 'forever', 
+          'Identifier': 'something', 
+          'PrivateURI': 'CHK@', 
+          'DataLength': '11', 
+          'RealTime': 'false', 
+          'DontCompress': 'false', 
+          'Metadata.ContentType': 'application/octet-stream', 
+          'footer': 'EndMessage'}        
         '''
 
         schema_succ = {
                         'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PersistentPut']},
                         'MaxRetries' : {'type' : 'string', 'required' : False, 'empty': False} ,
                         'Started' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Codecs' : {'type' : 'string', 'required' : False, 'empty': False} ,
                         'PriorityClass' : {'type' : 'string', 'required' : False, 'empty': False} ,
                         'UploadFrom' : {'type' : 'string', 'required' : True, 'empty': False} ,
                         'Filename' : {'type' : 'string', 'required' : False, 'empty': False} ,
@@ -2888,6 +3025,217 @@ class FromNodeToClient(object):
                         'Global' : {'type' : 'string', 'required' : False, 'empty': False} ,
                         'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                     }
+
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
+
+    @staticmethod
+    def persistent_put_complex_dir_redirect(data):
+        '''
+        {'header': 'PersistentPutDir', 
+         'MaxRetries': '-1', 
+         'Started': 'false', 
+         'Codecs': 'GZIP, BZIP2, LZMA, LZMA_NEW', 
+         'PriorityClass': '2', 
+         'CompatibilityMode': 'COMPAT_1468', 
+         'SplitfileCryptoKey': 'something', 
+         'Verbosity': 'something',
+         'URI': 'SSK@', 
+         'Global': 'true', 
+         'Persistence': 'forever', 
+         'Identifier': 'something', 
+         'PrivateURI': 'SSK@',
+         'PutDirType': 'complex', 
+         'RealTime': 'false', 
+         'DontCompress': 'false', 
+         'Files.Count': '2',
+         'Files.0.UploadFrom': 'redirect', 
+         'Files.0.TargetURI': 'CHK@', 
+         'Files.0.Name': 'Arnebab', 
+         'Files.1.UploadFrom': 'redirect', 
+         'Files.1.TargetURI': 'CHK@s', 
+         'Files.1.Name': 'IAM', 
+         'footer': 'EndMessage'} 
+        '''
+        
+        schema_succ = {
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PersistentPutDir']},
+                        'MaxRetries' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Started' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Codecs' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PriorityClass' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'CompatibilityMode' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'SplitfileCryptoKey' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Verbosity' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'URI' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Global' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Persistence' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PrivateURI' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PutDirType' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'RealTime' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'DontCompress' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Files.Count' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Identifier' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                    }
+        
+        if data.get('Files.Count', False):
+        
+            for _file in range(int(data['Files.Count'])):
+                schema_succ['Files.{0}.UploadFrom'.format(_file)] = {'type' : 'string', 'required' : True, 'empty': False}
+                schema_succ['Files.{0}.TargetURI'.format(_file)] = {'type' : 'string', 'required' : True, 'empty': False}
+                schema_succ['Files.{0}.Name'.format(_file)] = {'type' : 'string', 'required' : True, 'empty': False}
+        
+        schema_succ['footer'] = {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+        
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
+
+    @staticmethod
+    def persistent_put_complex_dir_files(data):
+        '''
+        {'header': 'PersistentPutDir', 
+         'MaxRetries': '-1', 
+         'Started': 'false', 
+         'Codecs': 'GZIP, BZIP2, LZMA, LZMA_NEW', 
+         'PriorityClass': '2', 
+         'CompatibilityMode': 'COMPAT_1468', 
+         'SplitfileCryptoKey': '9dd240e4da333b031038ae65c9dd2588f4ee583f505d756a91e5d0eecb4d49e4', 
+         'Verbosity': '2147483647', 
+         'URI': 'SSK@uEenybUmOwZ6uh5LNmK8sS4RUGyee7FEf4hQkSponFc,7LqV7QtPL992wxVzsBf8WeHfsMhSTuaTn-Bn96LPCR4,AQACAAE/guns',
+         'Global': 'true', 
+         'Persistence': 'forever', 
+         'Identifier': 'UYb2u9B6TZyxYiuBkWS42AUYb2u9B6TZyxYiuBkWS42AUYb2u9B6TZyxYiuBkWS42A', 
+         'PrivateURI': 'SSK@CCL7ohNBrM9jxE2EyhzBTQdQglFWUsrptklNpp9qGZg,7LqV7QtPL992wxVzsBf8WeHfsMhSTuaTn-Bn96LPCR4,AQECAAE/guns', 
+         'DefaultName': 'index.html', 
+         'PutDirType': 'complex', 
+         'RealTime': 'false', 
+         'DontCompress': 'false', 
+         'Files.Count': '3', 
+         'Files.0.UploadFrom': 'disk', 
+         'Files.0.DataLength': '145', 
+         'Files.0.Filename': '/home/ubuntu/Hacking/IPFS/other.html', 
+         'Files.0.Name': 'other.html', 
+         'Files.0.Metadata.ContentType': 'text/html', 
+         'Files.1.UploadFrom': 'disk', 
+         'Files.1.DataLength': '0', 
+         'Files.1.Filename': '/home/ubuntu/Hacking/IPFS/sitemap.html',
+         'Files.1.Name': 'sitemap.html', 
+         'Files.1.Metadata.ContentType': 'inode/x-empty',
+         'Files.2.UploadFrom': 'disk', 'Files.2.DataLength': '143', 
+         'Files.2.Filename': '/home/ubuntu/Hacking/IPFS/index.html',
+         'Files.2.Name': 'index.html', 
+         'Files.2.Metadata.ContentType': 'text/html', 
+         'footer': 'EndMessage'}
+        '''
+        
+        schema_succ = {
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PersistentPutDir']},
+                        'MaxRetries' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Started' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Codecs' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PriorityClass' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'CompatibilityMode' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'SplitfileCryptoKey' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Verbosity' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'URI' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Global' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Persistence' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Identifier' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PrivateURI' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'DefaultName' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PutDirType' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'RealTime' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'DontCompress' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Files.Count' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        
+                    }
+        
+        if data.get('Files.Count', False):
+            for _index in range(int(data['Files.Count'])):
+                schema_succ['Files.{0}.UploadFrom'.format(_index)] = {'type' : 'string', 'required' : True, 'empty': False}
+                schema_succ['Files.{0}.DataLength'.format(_index)] = {'type' : 'string', 'required' : True, 'empty': False}
+                schema_succ['Files.{0}.Filename'.format(_index)] = {'type' : 'string', 'required' : True, 'empty': False}
+                schema_succ['Files.{0}.Name'.format(_index)] = {'type' : 'string', 'required' : True, 'empty': False}
+                schema_succ['Files.{0}.Metadata.ContentType'.format(_index)] = {'type' : 'string', 'required' : True, 'empty': False}
+        
+        schema_succ['footer'] = {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
+        
+        v_succ = Validator(schema_succ)
+
+        if v_succ.validate(data):
+            return data['Identifier']
+
+        return False
+
+    @staticmethod
+    def persistent_put_complex_dir_data(data):
+        '''
+         {'header': 'PersistentPutDir', 
+          'MaxRetries': '-1', 
+          'Started': 'false', 
+          'Codecs': 'GZIP, BZIP2, LZMA, LZMA_NEW', 
+          'PriorityClass': '2', 
+          'CompatibilityMode': 'COMPAT_1468', 
+          'SplitfileCryptoKey': 'something', 
+          'Verbosity': 'something', 
+          'URI': 'SSK@', 
+          'Global': 'true', 
+          'Persistence': 'forever', 
+          'Identifier': 'something', 
+          'PrivateURI': 'SSK@',
+          'DefaultName': 'header'
+          'PutDirType': 'complex',
+          'RealTime': 'false',
+          'DontCompress': 'false', 
+          'Files.Count': '2', 
+          'Files.0.UploadFrom': 'direct', 
+          'Files.0.DataLength': '9', 
+          'Files.0.Name': 'footer', 
+          'Files.0.Metadata.ContentType': 'text/plain', 
+          'Files.1.UploadFrom': 'direct', 
+          'Files.1.DataLength': '9', 
+          'Files.1.Name': 'header', 
+          'Files.1.Metadata.ContentType': 'text/plain', 
+          'footer': 'EndMessage'}
+        '''
+        
+        schema_succ = {
+                        'header': {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['PersistentPutDir']},
+                        'MaxRetries' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Started' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Codecs' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PriorityClass' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'CompatibilityMode' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'SplitfileCryptoKey' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Verbosity' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'URI' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Global' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Persistence' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Identifier' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PrivateURI' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'DefaultName' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'PutDirType' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'RealTime' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'DontCompress' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                        'Files.Count' : {'type' : 'string', 'required' : False, 'empty': False} ,
+                      }
+
+        if data.get('Files.Count', False):
+            for _index in range(int(data['Files.Count'])):
+                schema_succ['Files.{0}.UploadFrom'.format(_index)] = {'type' : 'string', 'required' : True, 'empty': False}
+                schema_succ['Files.{0}.DataLength'.format(_index)] = {'type' : 'string', 'required' : True, 'empty': False}
+                schema_succ['Files.{0}.Name'.format(_index)] = {'type' : 'string', 'required' : True, 'empty': False}
+                schema_succ['Files.{0}.Metadata.ContentType'.format(_index)] = {'type' : 'string', 'required' : True, 'empty': False}
+
+        schema_succ['footer'] = {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
 
         v_succ = Validator(schema_succ)
 
@@ -3121,14 +3469,16 @@ class FromNodeToClient(object):
     @staticmethod
     def persistent_request_removed(data):
         '''
-        {'header': 'PersistentRequestRemoved', 'Identifier': 'PfdChTyLRHC7JzzKZCuDeQPfdChTyLRHC7JzzKZCuDeQPfdChTyLRHC7JzzKZCuDeQ', 
-        'Global': 'true', 'footer': 'EndMessage'}
+        {'header': 'PersistentRequestRemoved', 
+         'Identifier': 'PfdChTyLRHC7JzzKZCuDeQPfdChTyLRHC7JzzKZCuDeQPfdChTyLRHC7JzzKZCuDeQ', 
+         'Global': 'true', 
+         'footer': 'EndMessage'}
         '''
         
         schema_succ = {
                         'header': {'type' : 'string', 'required' : True, 'empty' : False, 'allowed': ['PersistentRequestRemoved']},
-                        'Identifier' : {'type' : 'string'} ,
-                        'Global' : {'type' : 'string', 'required' : True, 'empty' : False} ,
+                        'Identifier' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'Global' : {'type' : 'string', 'required' : False, 'empty' : False} ,
                         'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                       }
 
@@ -3136,9 +3486,7 @@ class FromNodeToClient(object):
 
         if v_succ.validate(data):
             return data['Identifier']
- 
-        raise Exception(v_succ.errors)
-
+        
         return False
 
 
@@ -3228,6 +3576,14 @@ class FromNodeToClient(object):
         {'header': 'PutFailed', 'Identifier': 'something', 
         'CodeDescription': 'Cancelled by user', 'ShortCodeDescription': 'Cancelled', 
         'Fatal': 'true', 'Code': '10', 'Global': 'true', 'footer': 'EndMessage'}
+        
+        OR
+        
+        {'header': 'PutFailed', 'Identifier': 'something', 
+         'CodeDescription': 'Internal bucket error: out of disk space/permissions problem?', 
+         'ShortCodeDescription': 'Temp files error', 'Fatal': 'true', 'Code': '2', 
+         'ExtraDescription': 'This RandomAccessBuffer has already been closed. It can no longer be written to.', 
+         'Global': 'true', 'footer': 'EndMessage'}
 
         '''
 
@@ -3236,6 +3592,7 @@ class FromNodeToClient(object):
                         'Identifier' : {'type' : 'string'} ,
                         'CodeDescription' : {'type' : 'string'} ,
                         'ShortCodeDescription' : {'type' : 'string'} ,
+                        'ExtraDescription' : {'type' : 'string'} ,
                         'Fatal' : {'type' : 'string'} ,
                         'Code' : {'type' : 'string'} ,
                         'Global' : {'type' : 'string'} ,
