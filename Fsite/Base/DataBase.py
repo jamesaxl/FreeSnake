@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS website (
     description             TEXT NOT NULL DEFAULT 'N/A',
     version                 INTEGER NOT NULL DEFAULT 0,
     created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at              TIMESTAMP
+    updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS file_manifest (
@@ -36,12 +36,13 @@ CREATE TABLE IF NOT EXISTS file_manifest (
     name                    TEXT NOT NULL,
     metadata_content_type   TEXT NOT NULL,
     size                    INTEGER NOT NULL,
-    prv                     TEXT UNIQUE NOT NULL,
-    pub                     TEXT UNIQUE NOT NULL,
+    prv                     TEXT NOT NULL,
+    pub                     TEXT NOT NULL,
+    version                 INTEGER NOT NULL DEFAULT 0,
     is_uploaded             INTEGER DEFAULT 0,
     website_id              INTEGER NOT NULL,
     created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at              TIMESTAMP,
+    updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(website_id) REFERENCES website(identifier) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -54,7 +55,7 @@ CREATE TABLE IF NOT EXISTS file_separate (
     is_uploaded             INTEGER DEFAULT 0,
     website_id              INTEGER NOT NULL,
     created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at              TIMESTAMP,
+    updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(website_id) REFERENCES website(identifier) ON DELETE CASCADE ON UPDATE CASCADE
 );
 '''
@@ -63,14 +64,15 @@ CREATE TABLE IF NOT EXISTS file_separate (
 def init_db_con():
     con = None
     try:
-        con = sqlite3.connect(DB_FILENAME, check_same_thread=False)
+        if not Path(DB_FILENAME).exists():
+            con = sqlite3.connect(DB_FILENAME, check_same_thread=False)
+            con.executescript(DB_SCHEMA)
+            LOGGER.info('WEBSITE DATABASE HAS BEEN CREATED')
+        else:
+            con = sqlite3.connect(DB_FILENAME, check_same_thread=False)
     except Error as e:
         print(e)
     return con
-
-def init_db(con):
-    con.executescript(DB_SCHEMA)
-    LOGGER.info('WEBSITE DATABASE HAS BEEN CREATED')
 
 class BaseModel(object):
     __metaclass__ = ABCMeta
@@ -99,11 +101,13 @@ class WebsiteModel(BaseModel):
                      default_index, path_dir, 
                      prv, pub, version):
 
+        dir_size = sum(f.stat().st_size for f in Path(path_dir).glob('**/*') if f.is_file() )
+        
         self.db_con.execute('''
                    INSERT INTO website 
                    (identifier, name, default_index, path, size, prv, pub, version)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?);''', ( identifier, name_of_site, default_index, 
-                                                          path_dir, os.stat(path_dir).st_size,
+                                                          path_dir, dir_size,
                                                           prv, pub, version ))
         self.db_con.commit()
     
@@ -113,12 +117,13 @@ class WebsiteModel(BaseModel):
         cursor.execute(sql, (identifier,) )
         self.db_con.commit()
     
-    def update(self, path_dir, 
-           prv, 
-           pub, 
-           version, 
-           default_index, 
-           name_of_site):
+    def update(self, 
+               path_dir, 
+               prv, 
+               pub, 
+               version, 
+               default_index, 
+               name_of_site):
 
         updated_at = datetime.today().strftime('%Y-%m-%d')
         self.db_con.execute('''
@@ -145,7 +150,7 @@ class WebsiteModel(BaseModel):
     def select_all(self, page): 
         cursor  = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM website LIMIT 10 OFFSET ?; ''', ((page - 1) * 10,))
-        cursor_r = cursor.fetchone()
+        cursor_r = cursor.fetchall()
         return cursor_r
     
     def delete(self, name_of_site): 
@@ -162,7 +167,7 @@ class WebsiteModel(BaseModel):
         cursor_r = cursor.fetchone()
         self.db_con.commit()
         return cursor_r
-    
+
     def check_if_website_uploaded(self, name_of_site):
         cursor  = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM website WHERE name = ? AND is_uploaded = 1; ''', (name_of_site,))
@@ -180,16 +185,18 @@ class ManifestModel(BaseModel):
                      size,
                      prv,
                      pub,
-                     identifier):
+                     identifier,
+                     version):
         self.db_con.execute('''
                         INSERT INTO file_manifest (name, metadata_content_type, 
-                        size, prv, pub, website_id)
-                        VALUES (?, ?, ?, ?, ?, ?);''', ( name,
+                        size, prv, pub, website_id, version)
+                        VALUES (?, ?, ?, ?, ?, ?, ?);''', ( name,
                                                          metadata_content_type, 
                                                          size,
                                                          prv,
                                                          pub,
-                                                         identifier, ))
+                                                         identifier,
+                                                         version, ))
         self.db_con.commit()
 
     def update_upload(self, prv):
@@ -198,11 +205,18 @@ class ManifestModel(BaseModel):
         cur.execute(sql, (prv,) )
         self.db_con.commit()
 
-    def check_if_manifest_exist(self, prv, identifier):
+    def update(self, prv, version, _file, size):
+        sql = ''' UPDATE file_manifest SET version = ? , size = ? WHERE prv = ? and name = ? ; '''                    
+        cur = self.db_con.cursor()
+        cur.execute(sql, (version, size, prv, _file) )
+        self.db_con.commit()
+
+    def check_if_manifest_exist(self, prv, _file, identifier):
         cursor  = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM file_manifest
-                           WHERE prv = ? 
-                           AND website_id = ? ; ''', (prv, identifier,))
+                           WHERE prv = ?
+                           AND name = ?
+                           AND website_id = ? ; ''', (prv, _file, identifier,))
 
         cursor_r = cursor.fetchone()
         self.db_con.commit()
@@ -211,19 +225,17 @@ class ManifestModel(BaseModel):
     def select_belong_to_website(self, website_id): 
         cursor  = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM file_manifest
-                           AND website_id = ? ; ''', (identifier,))
+                           WHERE website_id = ? ; ''', (website_id,))
 
-        cursor_r = cursor.fetchone()
+        cursor_r = cursor.fetchall()
         self.db_con.commit()
         return cursor_r
 
-    def delete(self, id): 
+    def delete(self, _file, website_id): 
         cursor  = self.db_con.cursor()
-        cursor.execute(''' DELETE file_manifest WHERE id = ?; ''', (id,))
-        cursor_r = cursor.fetchone()
+        cursor.execute(''' DELETE FROM file_manifest WHERE name = ? AND website_id = ?; ''', (_file, website_id))
         self.db_con.commit()
-        LOGGER.info('FILE HAS BEEN DELETED')
-        return cursor_r
+        LOGGER.info('ORPHAN MANIFEST FILES HAS BEEN DELETED')
 
 class SeparateModel(BaseModel):
 
@@ -265,16 +277,14 @@ class SeparateModel(BaseModel):
     def select_belong_to_website(self, website_id): 
         cursor  = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM file_separate
-                           AND website_id = ? ; ''', (identifier,))
+                           WHERE website_id = ? ; ''', (website_id,))
 
-        cursor_r = cursor.fetchone()
+        cursor_r = cursor.fetchall()
         self.db_con.commit()
         return cursor_r
 
-    def delete(self, id): 
+    def delete(self, _file, website_id): 
         cursor  = self.db_con.cursor()
-        cursor.execute(''' DELETE file_separate WHERE name = ?; ''', (id,))
-        cursor_r = cursor.fetchone()
+        cursor.execute(''' DELETE FROM file_separate WHERE name = ? AND website_id = ?; ''', (_file, website_id))
         self.db_con.commit()
-        LOGGER.info('FILE HAS BEEN DELETED')
-        return cursor_r
+        LOGGER.info('ORPHAN SEPARATE FILES HAS BEEN DELETED')

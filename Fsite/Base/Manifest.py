@@ -18,9 +18,10 @@ class Manifest(object):
     '''
     
     '''
-    def __init__(self, files_to_upload, default_index):
+    def __init__(self, files_to_upload, default_index, version):
         self.files_to_upload = files_to_upload
         self.default_index = default_index
+        self.version = version
         self.queue = { 'data' : [], 'size' : 0 }
         self.node_request = None
         self.prv = None
@@ -66,7 +67,7 @@ class Manifest(object):
 
     def upload_manifest(self, callback_func):
         if self.queue['data']:
-            self.node_request.put_complex_directory_files(uri = self.prv,
+            self.node_request.put_complex_directory_files(uri = '{0}-{1}'.format(self.prv, self.version),
                                                                identifier = self.identifier,
                                                                global_queue = True, 
                                                                site_name = self.name_of_site, 

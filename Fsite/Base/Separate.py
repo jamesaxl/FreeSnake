@@ -21,6 +21,7 @@ class Separate(object):
     '''
     def __init__(self, files_to_upload, website):
         self.files_to_upload = files_to_upload
+        self.temp_queue = { 'data' : [], 'number_of_files' : 0 }
         self.queue = { 'data' : [], 'number_of_files' : 0 }
         self.files_to_generate = []
         self.node_request = None
@@ -35,7 +36,16 @@ class Separate(object):
                                             'path' : _file['path'], 
                                             'metadata_content_type' : _file['metadata_content_type'],
                                            })
+                                           
+                self.temp_queue['data'].append({
+                                            'name' : _file['name'], 
+                                            'size' : _file['size'], 
+                                            'path' : _file['path'], 
+                                            'metadata_content_type' : _file['metadata_content_type'],
+                                           })
+
                 self.queue['number_of_files'] += 1
+                self.temp_queue['number_of_files'] += 1
 
         for _file in self.queue['data']:
             self.files_to_generate.append(_file)
@@ -43,10 +53,10 @@ class Separate(object):
         LOGGER.info('MAKE SEPARATE QUEUE')
 
     def upload_separate(self, callback_func):
-        if not self.queue['data']:
+        if not self.temp_queue['data']:
             self.website.manifest.upload_manifest(self.website.upload_manifest_callback) # from WebSite
         else:
-            self.temp = self.queue['data'].pop()
+            self.temp = self.temp_queue['data'].pop()
             self.node_request.put_file(uri = 'CHK@', 
                                    global_queue = True, 
                                    file_path = self.temp['path'], 
