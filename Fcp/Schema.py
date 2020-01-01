@@ -1056,7 +1056,7 @@ class FromClientToNode(object):
                         'real_time_flag' : {'type' : 'boolean', 'required': False} ,
                         'metadata_threshold' : {'type' : 'integer', 'required': False} ,
                         'file_path' : {'type' : 'string', 'required': True, 'empty': False} ,
-                    }
+                        }
 
         v_succ = Validator(schema_succ)
 
@@ -2636,6 +2636,10 @@ class FromNodeToClient(object):
         {'header': 'ProtocolError', 'Identifier': 'IHwY2ROpRfaxxj5ocVC9LgIHwY2ROpRfaxxj5ocVC9LgIHwY2ROpRfaxxj5ocVC9Lg', 
         'CodeDescription': 'Error parsing freenet URI', 'Fatal': 'false', 'Code': '4', 'ExtraDescription': 
         'There is no @ in that URI! (pub)', 'Global': 'true', 'footer': 'EndMessage'}
+        
+        Error: {'header': 'ProtocolError', 
+                'Identifier': 'radio_gbzTF29uTRKgR1b68PwUDwgbzTF29uTRKgR1b68PwUDwgbzTF29uTRKgR1b68PwUDw', 
+                'CodeDescription': 'Error parsing freenet URI', 'Fatal': 'true', 'Code': '4', 'Global': 'true', 'footer': 'EndMessage'}
         '''
         schema_succ = {
                    'header': {'type' : 'string', 'required' : True ,'allowed': ['ProtocolError']},
@@ -2643,9 +2647,9 @@ class FromNodeToClient(object):
                    'CodeDescription' : {'type' : 'string', 'required' : False, 'empty' : False} ,
                    'Fatal' : {'type' : 'string', 'required' : False} ,
                    'Code' : {'type' : 'string', 'required' :False, 'empty' : False} ,
-                   'ExtraDescription' : {'type' : 'string', 'required' :False, 'empty' : False} ,
-                   'Error' : {'type' : 'string', 'required' :False, 'empty' : False} ,
-                   'Global' : {'type' : 'string', 'required': False, 'empty' : False} ,
+                   'ExtraDescription' : {'type' : 'string', 'required' :False} ,
+                   'Error' : {'type' : 'string', 'required' :False} ,
+                   'Global' : {'type' : 'string', 'required': False} ,
                    'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}
                 }
 
@@ -3369,14 +3373,24 @@ class FromNodeToClient(object):
         {'header': 'ExpectedHashes', 'Identifier': 'something', 
         'Global': 'true', 'Hashes.SHA256': 'something', 
         'footer': 'EndMessage'}
-
+        
+        OR
+        
+        {'header': 'ExpectedHashes', 'Identifier': 'wHYmRkq6SVy4gn9g-1tDIQwHYmRkq6SVy4gn9g-1tDIQwHYmRkq6SVy4gn9g-1tDIQ',
+        'Global': 'true', 'Hashes.SHA256': 'ca276d9753ad4494870defca22ca421c3d88e71de56d0c4de41e6e28d8f7773f', 
+        'Hashes.SHA1': 'eb86a7d78c0c063f31a2144ed68910678909450d', 'Hashes.ED2K': '5fc63e8ae3f15948fbca6181d301a064', 
+        'Hashes.TTH': '0130ce5530a330932506d4e2b5991ae7d425b8f4388c3ad5', 
+        'Hashes.SHA512': 'e486a9fe403c858abb857b3ca414b830fffe7b9a4b8ecdf2e9c47e537f2006041ba66c01569266207fe98ad72795166ee393c098ec8d64b431df95f2dddb0f58', 
+        'Hashes.MD5': 'cda6d8068a32623aed48353dd139234b', 
+        'footer': 'EndMessage'}
         '''
         
         schema_succ = {
                         'header': {'type' : 'string', 'required' : True, 'empty' : False, 'allowed': ['ExpectedHashes']},
-                        'Identifier' : {'type' : 'string'} ,
+                        'Identifier' : {'type' : 'string', 'required' : True, 'empty' : False} ,
                         'Hashes.SHA256' : {'type' : 'string', 'required' : False, 'empty' : False} ,
                         'Hashes.SHA1' : {'type' : 'string', 'required' : False, 'empty' : False} ,
+                        'Hashes.TTH' : {'type' : 'string', 'required' : False, 'empty' : False} ,
                         'Hashes.MD5' : {'type' : 'string', 'required' : False, 'empty' : False,} ,
                         'Global' : {'type' : 'string'} ,
                         'footer' : {'type' : 'string', 'required' : True, 'empty': False, 'allowed': ['EndMessage']}

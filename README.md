@@ -33,3 +33,31 @@ To Update a website
 >>> w = WebSite()
 >>> w.update('name_of_your_web_site', 'absolute_path_of_your_web_site', 'default_index')
 ```
+
+### Fsite Radio
+ ```sh
+(py3_virtualenv)$ cd /path/to/FreeSnake
+(py3_virtualenv)$ python
+>>> from Fradio.Base.Radio import Radio
+>>> r = Radio()
+>>> r.insert('name_of_your_radio', 'absolute_path_of_your_radio')
+```
+To Update a website
+
+ ```sh
+(py3_virtualenv)$ cd /path/to/FreeSnake
+(py3_virtualenv)$ python
+>>> from Fradio.Base.Radio import Radio
+>>> r = Radio()
+>>> r.update('name_of_your_radio', 'absolute_path_of_your_radio')
+```
+To get list of files
+
+ ```sh
+ r.get_radio('PUBLIC_SSK_OF_RADIO', 'path', 'name_of_file')
+```
+To play
+
+ ```sh
+cvlc `sed 's,.*,url:port/&,' file_that_you_get_from_freenet`
+```
