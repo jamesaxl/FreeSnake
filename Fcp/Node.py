@@ -544,7 +544,7 @@ class Node(object):
 
         def list_peers(self, **kw):
             message = FromClientToNode.list_peers(**kw)
-            del (self.node.list_peers)
+            del self.node.list_peers
             time.sleep(2)
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
@@ -554,17 +554,17 @@ class Node(object):
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def add_peer_from_file(self, **kw):
-            message = FromClientToNode.add_peer(**kw)
+            message = FromClientToNode.add_peer_from_file(**kw)
             time.sleep(2)
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def add_peer_from_uri(self, **kw):
-            message = FromClientToNode.add_peer(**kw)
+            message = FromClientToNode.add_peer_from_uri(**kw)
             time.sleep(2)
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
         def add_peer_from_data(self, **kw):
-            message = FromClientToNode.add_peer(**kw)
+            message = FromClientToNode.add_peer_from_data(**kw)
             time.sleep(2)
             self.node.super_sonic_reactor.engine.send_request_to_node(message)
 
@@ -1098,7 +1098,8 @@ class Node(object):
 
                 elif FromNodeToClient.data_found(item):
                     identifier = FromNodeToClient.data_found(item)
-                    job = self.node.job_store.get(identifier, False)  ####
+                    job = self.node.job_store.get(identifier, False)
+
                     if job:
                         # callback if yes
                         if job.callback:
@@ -1110,11 +1111,12 @@ class Node(object):
                             LOGGER.info('Data found')
 
                             data_length = item['DataLength']
-                            if len(data_length) > 3 and len(data_length) < 6:
+
+                            if 3 < len(data_length) < 6:
                                 data_length = int(data_length) / 1000
                                 data_length = '{0:.2f}Kb'.format(data_length)
 
-                            elif len(data_length) > 6 and len(data_length) < 9:
+                            elif 6 < len(data_length) < 9:
                                 data_length = int(data_length) / 1000000
                                 data_length = '{0:.2f}Mb'.format(data_length)
 

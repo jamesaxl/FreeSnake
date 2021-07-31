@@ -197,7 +197,7 @@ class FromClientToNode(object):
         return add_peer_from_f.encode('utf-8')
 
     @staticmethod
-    def add_peer_from_url(**kw):
+    def add_peer_from_uri(**kw):
         """
         AddPeer\n
         Trust=NORMAL\n
@@ -632,38 +632,38 @@ class FromClientToNode(object):
         """
         pass
 
-    @staticmethod
-    def get_request_status(**kw):
-        """
-        Identifier: String\n
-        Global: Boolean (default=false)\n
-        OnlyData: boolean (default=false)\n
-        """
-        get_request_s = 'GetRequestStatus\n'
-
-        schema_succ = {
-            'identifier': {'type': 'string', 'required': True, 'empty': False, },
-            'global_queue': {'type': 'boolean', 'required': False, 'empty': False, },
-            'only_data': {'type': 'boolean', 'required': False, 'empty': False, },
-        }
-
-        v_succ = Validator(schema_succ)
-
-        if not v_succ.validate(kw):
-            raise Exception(v_succ.errors)
-
-        identifier = kw['identifier']
-        get_request_s += 'Identifier={0}\n'.format(identifier)
-
-        global_queue = kw.get('global_queue', False)
-        get_request_s += 'Global={0}\n'.format(global_queue)
-
-        only_data = kw.get('only_data', False)
-        get_request_s += 'OnlyData={0}\n'.format(only_data)
-
-        get_request_s += 'EndMessage\n'
-
-        return get_request_s.encode('utf-8')
+    # @staticmethod
+    # def get_request_status(**kw):
+    #     """
+    #     Identifier: String\n
+    #     Global: Boolean (default=false)\n
+    #     OnlyData: boolean (default=false)\n
+    #     """
+    #     get_request_s = 'GetRequestStatus\n'
+    #
+    #     schema_succ = {
+    #         'identifier': {'type': 'string', 'required': True, 'empty': False, },
+    #         'global_queue': {'type': 'boolean', 'required': False, 'empty': False, },
+    #         'only_data': {'type': 'boolean', 'required': False, 'empty': False, },
+    #     }
+    #
+    #     v_succ = Validator(schema_succ)
+    #
+    #     if not v_succ.validate(kw):
+    #         raise Exception(v_succ.errors)
+    #
+    #     identifier = kw['identifier']
+    #     get_request_s += 'Identifier={0}\n'.format(identifier)
+    #
+    #     global_queue = kw.get('global_queue', False)
+    #     get_request_s += 'Global={0}\n'.format(global_queue)
+    #
+    #     only_data = kw.get('only_data', False)
+    #     get_request_s += 'OnlyData={0}\n'.format(only_data)
+    #
+    #     get_request_s += 'EndMessage\n'
+    #
+    #     return get_request_s.encode('utf-8')
 
     @staticmethod
     def list_persistent_requests(**kw):
@@ -2531,29 +2531,29 @@ class FromClientToNode(object):
 
         return get_f.encode('utf-8'), identifier
 
-    # @staticmethod
-    # def get_request_status(identifier):
-    #     """
-    #     GetRequestStatus\n
-    #     Identifier=something\n
-    #     Persistence=forever\n
-    #     Global=true\n
-    #     EndMessage\n
-    #
-    #     ###
-    #
-    #     keywords: We will see how to implement
-    #     - persistence
-    #     - global_queue
-    #     """
-    #
-    #     get_request_s = 'GetRequestStatus\n'
-    #     get_request_s += 'Identifier={0}\n'.format(identifier)
-    #     get_request_s += 'Persistence=forever\n'
-    #     get_request_s += 'Global=true\n'
-    #     get_request_s += 'EndMessage\n'
-    #
-    #     return get_request_s.encode('utf-8')
+    @staticmethod
+    def get_request_status(identifier):
+        """
+        GetRequestStatus\n
+        Identifier=something\n
+        Persistence=forever\n
+        Global=true\n
+        EndMessage\n
+
+        ###
+
+        keywords: We will see how to implement
+        - persistence
+        - global_queue
+        """
+
+        get_request_s = 'GetRequestStatus\n'
+        get_request_s += 'Identifier={0}\n'.format(identifier)
+        get_request_s += 'Persistence=forever\n'
+        get_request_s += 'Global=true\n'
+        get_request_s += 'EndMessage\n'
+
+        return get_request_s.encode('utf-8')
 
     @staticmethod
     def remove_request(identifier):
