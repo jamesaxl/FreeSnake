@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
-
-'''
+"""
 FCP API in Python created by James Axl 2018
 
 For FCP documentation, see http://wiki.freenetproject.org/FCPv2 still under construction
-'''
+"""
 
 import os
 import sqlite3
@@ -60,65 +58,63 @@ def init_db_con():
         print(e)
     return con
 
+
 class BaseModel(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
     def insert(self): raise NotImplementedError
-    
+
     @abstractmethod
     def update(self): raise NotImplementedError
-    
+
     @abstractmethod
     def update_upload(self): raise NotImplementedError
 
     @abstractmethod
     def delete(self): raise NotImplementedError
-    
+
     @abstractmethod
     def select(self): raise NotImplementedError
 
     @abstractmethod
     def select_all(self): raise NotImplementedError
-    
-    
+
 
 class RadioModel(BaseModel):
-    
+
     def __init__(self, con):
         self.db_con = con
-    
-    def insert(self, 
-               identifier, 
-               name, 
-               path_dir, 
-               prv, 
-               pub, 
-               version):
 
-        dir_size = sum(f.stat().st_size for f in Path(path_dir).glob('**/*') if f.is_file() )
-        
+    def insert(self,
+               identifier,
+               name,
+               path_dir,
+               prv,
+               pub,
+               version):
+        dir_size = sum(f.stat().st_size for f in Path(path_dir).glob('**/*') if f.is_file())
+
         self.db_con.execute('''
                    INSERT INTO radio 
                    (identifier, name, path, size, prv, pub, version)
-                   VALUES (?, ?, ?, ?, ?, ?, ?);''', ( identifier, name, 
-                                                       path_dir, dir_size,
-                                                       prv, pub, version ))
+                   VALUES (?, ?, ?, ?, ?, ?, ?);''', (identifier, name,
+                                                      path_dir, dir_size,
+                                                      prv, pub, version))
         self.db_con.commit()
-    
-    def update_upload(self, identifier): 
-        sql = ''' UPDATE radio SET is_uploaded = 1 WHERE identifier = ? ; '''                    
-        cursor = self.db_con.cursor()
-        cursor.execute(sql, (identifier,) )
-        self.db_con.commit()
-    
-    def update(self, 
-               path_dir, 
-               prv, 
-               pub, 
-               version, 
-               name):
 
+    def update_upload(self, identifier):
+        sql = ''' UPDATE radio SET is_uploaded = 1 WHERE identifier = ? ; '''
+        cursor = self.db_con.cursor()
+        cursor.execute(sql, (identifier,))
+        self.db_con.commit()
+
+    def update(self,
+               path_dir,
+               prv,
+               pub,
+               version,
+               name):
         updated_at = datetime.today().strftime('%Y-%m-%d')
         self.db_con.execute('''
                                 UPDATE radio 
@@ -129,63 +125,63 @@ class RadioModel(BaseModel):
                                 , size = ?
                                 , updated_at = ?
                                 WHERE
-                                name = ?;''', ( path_dir, 
-                                                prv, 
-                                                pub, 
-                                                version, 
-                                                os.stat(path_dir).st_size,
-                                                updated_at, 
-                                                name ),)
+                                name = ?;''', (path_dir,
+                                               prv,
+                                               pub,
+                                               version,
+                                               os.stat(path_dir).st_size,
+                                               updated_at,
+                                               name), )
 
         self.db_con.commit()
-    
-    def select_all(self, page): 
-        cursor  = self.db_con.cursor()
+
+    def select_all(self, page):
+        cursor = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM radio LIMIT 10 OFFSET ?; ''', ((page - 1) * 10,))
         cursor_r = cursor.fetchall()
         return cursor_r
-    
-    def delete(self, name_of_site): 
-        cursor  = self.db_con.cursor()
+
+    def delete(self, name_of_site):
+        cursor = self.db_con.cursor()
         cursor.execute(''' DELETE radio WHERE name = ?; ''', (name_of_site,))
         cursor_r = cursor.fetchone()
         self.db_con.commit()
         LOGGER.info('{0} HAS BEEN DELETED'.format(name_of_site))
         return cursor_r
-    
+
     def check_if_radio_exist(self, name_of_site):
-        cursor  = self.db_con.cursor()
+        cursor = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM radio WHERE name = ?; ''', (name_of_site,))
         cursor_r = cursor.fetchone()
         self.db_con.commit()
         return cursor_r
 
     def check_if_radio_uploaded(self, name_of_site):
-        cursor  = self.db_con.cursor()
+        cursor = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM radio WHERE name = ? AND is_uploaded = 1; ''', (name_of_site,))
         cursor_r = cursor.fetchone()
         self.db_con.commit()
         return cursor_r
+
 
 class TrackModel(BaseModel):
 
     def __init__(self, con):
         self.db_con = con
 
-    def insert(self, name, 
-                     metadata_content_type, 
-                     size,
-                     uri,
-                     identifier): 
-
+    def insert(self, name,
+               metadata_content_type,
+               size,
+               uri,
+               identifier):
         self.db_con.execute('''
             INSERT INTO track ( name, metadata_content_type, 
             size, chk, radio_id )
-            VALUES (?, ?, ?, ?, ?);''', ( name, 
-                                          metadata_content_type, 
-                                          size,
-                                          uri,
-                                          identifier, ))
+            VALUES (?, ?, ?, ?, ?);''', (name,
+                                         metadata_content_type,
+                                         size,
+                                         uri,
+                                         identifier,))
         self.db_con.commit()
 
     def update_upload(self, chk):
@@ -195,7 +191,7 @@ class TrackModel(BaseModel):
         self.db_con.commit()
 
     def check_if_chk_exist(self, chk, identifier):
-        cursor  = self.db_con.cursor()
+        cursor = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM track 
                            WHERE chk = ? 
                            AND radio_id = ? ; ''', (chk, identifier,))
@@ -204,8 +200,8 @@ class TrackModel(BaseModel):
         self.db_con.commit()
         return cursor_r
 
-    def select_belong_to_radio(self, radio_id): 
-        cursor  = self.db_con.cursor()
+    def select_belong_to_radio(self, radio_id):
+        cursor = self.db_con.cursor()
         cursor.execute(''' SELECT * FROM track
                            WHERE radio_id = ? ; ''', (radio_id,))
 
@@ -213,8 +209,8 @@ class TrackModel(BaseModel):
         self.db_con.commit()
         return cursor_r
 
-    def delete(self, _file, radio_id): 
-        cursor  = self.db_con.cursor()
+    def delete(self, _file, radio_id):
+        cursor = self.db_con.cursor()
         cursor.execute(''' DELETE FROM track WHERE name = ? AND radio_id = ?; ''', (_file, radio_id))
         self.db_con.commit()
         LOGGER.info('TRACK HAS BEEN DELETED')

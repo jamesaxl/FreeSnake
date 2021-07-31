@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-'''
+"""
 FCP API in Python created by James Axl 2018
 
-For FCP documentation, see http://wiki.freenetproject.org/FCPv2 still under construction
-'''
+For FCP documentation, see https://wiki.freenetproject.org/FCPv2 still under construction
+"""
 import logging
 
 LOGGER = logging.getLogger('FRadio')

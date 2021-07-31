@@ -1,22 +1,20 @@
-# -*- coding: utf-8 -*-
-
-'''
+"""
 FCP API in Python created by James Axl 2018
 
-For FCP documentation, see http://wiki.freenetproject.org/FCPv2 still under construction
-'''
+For FCP documentation, see https://wiki.freenetproject.org/FCPv2 still under construction
+"""
 
-import os, sys
-from pathlib import Path
-import configparser
-from .Logger import LOGGER
-import uuid
 import base64
+import configparser
+import os
+import sys
+import uuid
+from pathlib import Path
 
-#just for test
+# just for test
 current_dir = os.getcwd()
 sys.path.append(current_dir)
-#just for test
+# just for test
 
 try:
     from Fcp.Node import Node
@@ -32,18 +30,17 @@ DEFAULT_PORT = '9481'
 DEFAULT_ENGINE_MODE = 'socket'
 DEFAULT_LOG = 'file'
 
+
 class Core(object):
-    '''
-    '''
     def __init__(self):
         Path(CONFIG_DIR).mkdir(parents=True, exist_ok=True)
         if not Path(CONFIG_FILE).exists():
             self.set_config(
-                             host = DEFAULT_HOST, 
-                             port = DEFAULT_PORT, 
-                             name_of_connection = 'freeradio_{0}'.format(self.get_a_uuid()),
-                             engine_mode = DEFAULT_ENGINE_MODE,
-                             log = DEFAULT_LOG)
+                host=DEFAULT_HOST,
+                port=DEFAULT_PORT,
+                name_of_connection='freeradio_{0}'.format(self.get_a_uuid()),
+                engine_mode=DEFAULT_ENGINE_MODE,
+                log=DEFAULT_LOG)
 
         self.node = Node()
 
@@ -55,12 +52,12 @@ class Core(object):
     def set_config(self, **config_data):
         config_file = Path(CONFIG_FILE)
         config = configparser.ConfigParser()
-        config['DEFAULT'] = {  'HOST' : config_data['host'], 
-                               'PORT' : config_data['port'],
-                               'NAME_OF_CONNECTION' : config_data['name_of_connection'], 
-                               'ENGINE_MODE' : config_data['engine_mode'],
-                               'LOG' : config_data['log']
-                            }
+        config['DEFAULT'] = {'HOST': config_data['host'],
+                             'PORT': config_data['port'],
+                             'NAME_OF_CONNECTION': config_data['name_of_connection'],
+                             'ENGINE_MODE': config_data['engine_mode'],
+                             'LOG': config_data['log']
+                             }
 
         with open(str(config_file), 'w') as configfile:
             config.write(configfile)
@@ -76,7 +73,7 @@ class Core(object):
     def disconnect_from_node(self):
         self.node.disconnect_from_node()
 
-    def get_a_uuid(self, round = 3):
+    def get_a_uuid(self, round=3):
         r_uuid = base64.urlsafe_b64encode(uuid.uuid4().bytes)
         key = ''
         for i in range(round):
