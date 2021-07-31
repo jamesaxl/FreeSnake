@@ -49,10 +49,10 @@ class Track(object):
         if not self.temp_queue['data']:
             self.radio.upload_radio(self.radio.upload_radio_callback)  # from WebSite
         else:
-            temp = self.temp_queue['data'].pop()
+            self.temp = self.temp_queue['data'].pop()
             self.node_request.put_file(uri='CHK@',
                                        global_queue=True,
-                                       file_path=temp['path'],
+                                       file_path=self.temp['path'],
                                        callback=callback_func)
 
     def generate_chk_before_upload(self, callback_func):
