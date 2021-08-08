@@ -19,10 +19,11 @@ class Track(object):
         self.files_to_generate = []
         self.node_request = None
         self.radio = radio
+        self.temp = None
 
     def make_track(self):
         for _file in self.files_to_upload:
-            if (self.queue['number_of_files'] < DEFAULT_MAX_NUMBER_TRACK_FILES):
+            if self.queue['number_of_files'] < DEFAULT_MAX_NUMBER_TRACK_FILES:
                 self.queue['data'].append({
                     'name': _file['name'],
                     'size': _file['size'],
@@ -30,15 +31,10 @@ class Track(object):
                     'metadata_content_type': _file['metadata_content_type'],
                 })
 
-                self.temp_queue['data'].append({
-                    'name': _file['name'],
-                    'size': _file['size'],
-                    'path': _file['path'],
-                    'metadata_content_type': _file['metadata_content_type'],
-                })
+                self.temp_queue['data'] = self.queue['data']
 
                 self.queue['number_of_files'] += 1
-                self.temp_queue['number_of_files'] += 1
+                self.temp_queue['number_of_files'] = self.queue['number_of_files']
 
         for _file in self.queue['data']:
             self.files_to_generate.append(_file)

@@ -3416,6 +3416,17 @@ class FromNodeToClient(object):
         'Hashes.SHA512': 'e486a9fe403c858abb857b3ca414b830fffe7b9a4b8ecdf2e9c47e537f2006041ba66c01569266207fe98ad72795166ee393c098ec8d64b431df95f2dddb0f58',
         'Hashes.MD5': 'cda6d8068a32623aed48353dd139234b',
         'footer': 'EndMessage'}
+
+        OR
+
+        {'header': 'ExpectedHashes', 'Identifier': 'Sui5Gx5jQKqKppbiAW9fqgSui5Gx5jQKqKppbiAW9fqgSui5Gx5jQKqKppbiAW9fqg',
+        'Global': 'true', 'Hashes.SHA256': 'f632c4a499cad1475933057d866ac78796fa95e164f2b824e4a8960c533757d8',
+        'Hashes.SHA1': 'da4a758fcf23241eb285a9553d59291005042bd5',
+        'Hashes.ED2K': '3ba206d765c6c3ed4c3c149c436daf6e',
+        'Hashes.TTH': '8fd23efbace31f32fd2fbb32b2ab0f051c18cd177d937bcb',
+        'Hashes.SHA512': '290f331ee79d9adb2b034ccab6363f5223d14bc44ae3365ef9c752e000b3326d8eec49d15062672153b181df4f8bc045981d606ac47f62ca21f447be6c0d4aca',
+        'Hashes.MD5': 'a39b548cc92872388a8a2279e37e8bb6', 'footer': 'EndMessage'}
+
         """
 
         schema_succ = {
@@ -3424,6 +3435,8 @@ class FromNodeToClient(object):
             'Hashes.SHA256': {'type': 'string', 'required': False, 'empty': False},
             'Hashes.SHA1': {'type': 'string', 'required': False, 'empty': False},
             'Hashes.TTH': {'type': 'string', 'required': False, 'empty': False},
+            'Hashes.SHA512': {'type': 'string', 'required': False, 'empty': False},
+            'Hashes.ED2K': {'type': 'string', 'required': False, 'empty': False},
             'Hashes.MD5': {'type': 'string', 'required': False, 'empty': False, },
             'Global': {'type': 'string'},
             'footer': {'type': 'string', 'required': True, 'empty': False, 'allowed': ['EndMessage']}

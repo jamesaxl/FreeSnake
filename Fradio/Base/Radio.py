@@ -35,6 +35,17 @@ class Radio(object):
         self.radio_model = RadioModel(self.db_con)
         self.track_model = TrackModel(self.db_con)
         self.update_flag = False
+        self.temp_path = None
+
+        self.name = None
+        self.path_dir = None
+        self.identifier = None
+        self.version = 0
+        self.description = None
+        self.files_to_upload = None
+        self.pub = None
+        self.prv = None
+        self.track = None
 
     def insert(self,
                name,
@@ -171,6 +182,7 @@ class Radio(object):
 
     def sort_files_by_size(self):
         files = []
+
         for _file in list(Path(self.temp_path).glob('*')):
             metadata_content_type = magic.from_file(_file.as_posix(), mime=True)
             files.append({'name': _file.name,
